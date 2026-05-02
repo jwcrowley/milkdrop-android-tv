@@ -1,0 +1,132 @@
+name: Build & Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'           # Trigger on version tags: v1.0, v1.2.3, etc.
+  workflow_dispatch:   # Allow manual trigger from the Actions tab
+
+jobs:
+  build:
+    name: Build Release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ────────────────────────────────────────────────────────────
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive   # pulls app/src/main/cpp/projectm/
+
+      # ── Java ────────────────────────────────────────────────────────────────
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # ── Android SDK / NDK / CMake ────────────────────────────────────────────
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK and CMake
+        run: |
+          sdkmanager --install \
+            "ndk;25.2.9519653" \
+            "cmake;3.22.1"
+
+      # ── Gradle cache ────────────────────────────────────────────────────────
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle.kts', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      # ── NDK build cache (projectM takes ~10 min to compile from scratch) ────
+      - name: Cache NDK build outputs
+        uses: actions/cache@v4
+        with:
+          path: app/.cxx
+          key: ndk-${{ runner.os }}-${{ hashFiles('app/src/main/cpp/**') }}-${{ hashFiles('app/build.gradle.kts') }}
+          restore-keys: |
+            ndk-${{ runner.os }}-
+
+      # ── Gradle wrapper permissions ───────────────────────────────────────────
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      # ── Decode keystore from secret ──────────────────────────────────────────
+      # Store your keystore as a base64-encoded GitHub secret named KEYSTORE_BASE64
+      # Generate with: base64 -i your-keystore.jks | pbcopy
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/milkdrop-release.jks
+
+      # ── Build signed release APK ─────────────────────────────────────────────
+      - name: Build release APK
+        env:
+          KEYSTORE_PATH: milkdrop-release.jks
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/app/$KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$STORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      # ── Rename APK with version tag ──────────────────────────────────────────
+      - name: Rename APK
+        run: |
+          VERSION="${{ github.ref_name }}"
+          # Fall back to commit SHA for manual/non-tag runs
+          if [[ "$VERSION" != v* ]]; then
+            VERSION="dev-${{ github.sha }}"
+          fi
+          mv app/build/outputs/apk/release/app-release.apk \
+             app/build/outputs/apk/release/milkdrop-tv-${VERSION}.apk
+          echo "APK_NAME=milkdrop-tv-${VERSION}.apk" >> $GITHUB_ENV
+
+      # ── Upload APK as workflow artifact ─────────────────────────────────────
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APK_NAME }}
+          path: app/build/outputs/apk/release/${{ env.APK_NAME }}
+          retention-days: 30
+
+      # ── Create GitHub Release (only on version tags) ─────────────────────────
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: MilkDrop TV ${{ github.ref_name }}
+          body: |
+            ## MilkDrop Android TV ${{ github.ref_name }}
+
+            Sideloadable APK for Fire TV Stick and ONN Android TV boxes.
+
+            ### Installation
+            **Via ADB:**
+            ```bash
+            adb install -r milkdrop-tv-${{ github.ref_name }}.apk
+            ```
+            **Via Downloader app (Fire TV):** Enable unknown sources in Developer Options, then use the Downloader app with the APK URL from this release.
+
+            ### Requirements
+            - Android 5.0+ (API 21)
+            - Fire TV Stick 2nd gen or later, ONN Android TV box, or any Android TV device
+          files: app/build/outputs/apk/release/${{ env.APK_NAME }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}  # e.g. v1.0-beta is a prerelease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Clean up keystore ────────────────────────────────────────────────────
+      - name: Remove keystore
+        if: always()
+        run: rm -f app/milkdrop-release.jks
