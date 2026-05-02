@@ -1,0 +1,4 @@
+[submodule "app/src/main/cpp/projectm"]
+    path = app/src/main/cpp/projectm
+    url = https://github.com/projectM-visualizer/projectm.git
+    branch = master

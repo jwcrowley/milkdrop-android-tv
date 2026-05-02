@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Root layout for VisualizerActivity.
+    The FrameLayout at the root holds two layers:
+      1. A placeholder FrameLayout (id=visualizer_surface_container) where the
+         GLSurfaceView is inserted programmatically at index 0.
+      2. An overlay FrameLayout (id=visualizer_overlay_container) that sits on
+         top and hosts OverlayFragment when visible.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- GLSurfaceView is added programmatically into this container -->
+    <FrameLayout
+        android:id="@+id/visualizer_surface_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Overlay fragment container — transparent, sits above the GL surface -->
+    <FrameLayout
+        android:id="@+id/visualizer_overlay_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/transparent" />
+
+</FrameLayout>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Semi-transparent overlay shown over the visualizer.
+    Displays the current preset name, audio source indicator, and action hints.
+    All text is ≥ 24sp as required by the TV UI spec.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="bottom"
+    android:background="#99000000"
+    android:padding="32dp">
+
+    <!-- Current preset name — large, prominent -->
+    <TextView
+        android:id="@+id/overlay_preset_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#FFFFFF"
+        android:textSize="36sp"
+        android:textStyle="bold"
+        android:shadowColor="#000000"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="4"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:text="" />
+
+    <!-- Audio source indicator -->
+    <TextView
+        android:id="@+id/overlay_audio_source"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="#CCFFFFFF"
+        android:textSize="24sp"
+        android:shadowColor="#000000"
+        android:shadowDx="1"
+        android:shadowDy="1"
+        android:shadowRadius="3"
+        android:text="" />
+
+    <!-- Action hints -->
+    <TextView
+        android:id="@+id/overlay_action_hints"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textColor="#AAFFFFFF"
+        android:textSize="24sp"
+        android:shadowColor="#000000"
+        android:shadowDx="1"
+        android:shadowDy="1"
+        android:shadowRadius="3"
+        android:text="@string/overlay_action_hints" />
+
+</LinearLayout>
