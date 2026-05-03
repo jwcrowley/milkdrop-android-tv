@@ -29,17 +29,15 @@ target_compile_options(milkdrop_bridge PRIVATE
 )
 
 if(PROJECTM_AVAILABLE)
-    # projectM 4.x add_subdirectory() target is "libprojectM"
-    # Use target_link_libraries — this propagates include dirs transitively,
-    # including the build-dir generated headers like projectM_export.h
+    # The actual CMake target is "projectM" (not "libprojectM")
+    # "libprojectM::projectM" is an alias defined in projectM's own CMakeLists
     target_link_libraries(milkdrop_bridge
-        libprojectM
+        libprojectM::projectM
         EGL
         GLESv3
         android
         log
     )
-    # Do NOT manually add include dirs — let CMake propagate them from libprojectM
 else()
     target_link_libraries(milkdrop_bridge
         EGL
