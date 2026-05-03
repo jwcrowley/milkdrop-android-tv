@@ -39,7 +39,6 @@ class MainFragment : Fragment() {
 
         view.findViewById<Button>(R.id.btn_crash_log).setOnClickListener {
             val log = com.example.milkdrop.CrashLogger.getLog(requireContext())
-            // Show in a scrollable dialog
             val tv = android.widget.TextView(requireContext()).apply {
                 text = if (log.length > 3000) log.takeLast(3000) else log
                 textSize = 14f
@@ -53,7 +52,15 @@ class MainFragment : Fragment() {
             android.app.AlertDialog.Builder(requireContext())
                 .setTitle("Crash Log")
                 .setView(scroll)
-                .setPositiveButton("Clear") { _, _ ->
+                .setPositiveButton("Share") { _, _ ->
+                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_SUBJECT, "MilkDrop TV Crash Log")
+                        putExtra(android.content.Intent.EXTRA_TEXT, log)
+                    }
+                    startActivity(android.content.Intent.createChooser(shareIntent, "Share crash log"))
+                }
+                .setNeutralButton("Clear") { _, _ ->
                     com.example.milkdrop.CrashLogger.clear(requireContext())
                 }
                 .setNegativeButton("Close", null)
