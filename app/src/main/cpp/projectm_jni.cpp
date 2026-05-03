@@ -16,6 +16,7 @@
 // Include projectM header — resolved via libprojectM's transitive include dirs
 #if __has_include("projectM-4/projectM.h")
 #  include "projectM-4/projectM.h"
+#  include "projectM-4/render_opengl.h"
 #  define PROJECTM_AVAILABLE 1
 #else
 #  define PROJECTM_AVAILABLE 0
@@ -137,7 +138,7 @@ Java_com_example_milkdrop_ProjectMBridge_renderFrameNative(
         JNIEnv*, jobject, jlong handle) {
 #if PROJECTM_AVAILABLE
     projectm_handle pm = lookupHandle(handle);
-    if (pm) projectm_render_frame(pm);
+    if (pm) projectm_opengl_render_frame(pm);
 #else
     (void)handle;
 #endif
