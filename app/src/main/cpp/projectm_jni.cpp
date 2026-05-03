@@ -13,11 +13,8 @@
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
-// Include projectM header if the submodule is present
-#if __has_include("projectm/src/api/include/projectM-4/projectM.h")
-#  include "projectm/src/api/include/projectM-4/projectM.h"
-#  define PROJECTM_AVAILABLE 1
-#elif __has_include("projectM-4/projectM.h")
+// Include projectM header — resolved via libprojectM's transitive include dirs
+#if __has_include("projectM-4/projectM.h")
 #  include "projectM-4/projectM.h"
 #  define PROJECTM_AVAILABLE 1
 #else
