@@ -8,6 +8,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.TextView
 import androidx.fragment.app.FragmentActivity
 import com.example.milkdrop.audio.AudioCaptureManager
 import com.example.milkdrop.audio.AudioFrameQueue
@@ -19,40 +20,13 @@ import com.example.milkdrop.renderer.ProjectMRenderer
 import com.example.milkdrop.renderer.RenderResolution
 import com.example.milkdrop.renderer.VisualizerSurfaceView
 import com.example.milkdrop.settings.SettingsRepository
-import com.example.milkdrop.ui.OverlayFragment
 import java.io.File
 
-/**
- * Fullscreen visualizer activity.
- *
- * Hosts [VisualizerSurfaceView] with no title bar or status bar.
- * Handles D-pad key events for preset navigation and overlay management.
- *
- * ## D-pad key handling
- * - [KeyEvent.KEYCODE_DPAD_CENTER] → [PresetManager.nextPreset]
- * - [KeyEvent.KEYCODE_DPAD_LEFT]   → [PresetManager.previousPreset]
- * - Any key                        → show [OverlayFragment], reset 3-second auto-hide timer
- *
- * ## Lifecycle
- * - [onResume]: starts [AudioCaptureManager] and [GLSurfaceView.onResume]
- * - [onPause]:  stops [AudioCaptureManager] and [GLSurfaceView.onPause]
- * - [onDestroy]: releases [PresetManager] resources
- *
- * ## Memory pressure
- * On [ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL], the render resolution
- * is reduced to 50% of native via [ProjectMBridge.reinitialize].
- */
 class VisualizerActivity : FragmentActivity(), ComponentCallbacks2 {
 
     companion object {
         private const val OVERLAY_HIDE_DELAY_MS = 3_000L
-        private const val OVERLAY_TAG = "overlay"
     }
-
-    // -------------------------------------------------------------------------
-    // Component references — obtained from LauncherActivity's companion object
-    // when available, otherwise created locally.
-    // -------------------------------------------------------------------------
 
     private lateinit var surfaceView: VisualizerSurfaceView
     private lateinit var bridge: ProjectMBridge
@@ -62,28 +36,20 @@ class VisualizerActivity : FragmentActivity(), ComponentCallbacks2 {
     private lateinit var beatDetector: BeatDetector
     private lateinit var presetManager: PresetManager
     private lateinit var settingsRepository: SettingsRepository
-
-    /** True when this activity created its own singletons (standalone launch). */
     private var ownsInstances = false
 
     private val overlayHideHandler = Handler(Looper.getMainLooper())
-    private val overlayHideRunnable = Runnable { hideOverlay() }
-
-    // Track whether the overlay is currently visible
     private var overlayVisible = false
 
-    // Track native surface dimensions for memory-pressure resolution reduction
-    private var nativeSurfaceWidth = 0
-    private var nativeSurfaceHeight = 0
-
-    // -------------------------------------------------------------------------
-    // Lifecycle
-    // -------------------------------------------------------------------------
+    // Simple overlay — just a TextView, no fragment transaction needed
+    private lateinit var overlayView: View
+    private lateinit var presetNameText: TextView
+    private lateinit var hintText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Fullscreen — no title bar, no status bar, keep screen on
+        // Fullscreen
         window.addFlags(
             WindowManager.LayoutParams.FLAG_FULLSCREEN or
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
@@ -95,59 +61,60 @@ class VisualizerActivity : FragmentActivity(), ComponentCallbacks2 {
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         )
 
-        // Obtain shared singletons from LauncherActivity if available
+        // Wire up singletons
         if (LauncherActivity.isInitialized) {
-            bridge = LauncherActivity.bridge
-            audioFrameQueue = LauncherActivity.audioFrameQueue
-            renderer = LauncherActivity.renderer
+            bridge              = LauncherActivity.bridge
+            audioFrameQueue     = LauncherActivity.audioFrameQueue
+            renderer            = LauncherActivity.renderer
             audioCaptureManager = LauncherActivity.audioCaptureManager
-            beatDetector = LauncherActivity.beatDetector
-            presetManager = LauncherActivity.presetManager
-            settingsRepository = LauncherActivity.settingsRepository
-            ownsInstances = false
+            beatDetector        = LauncherActivity.beatDetector
+            presetManager       = LauncherActivity.presetManager
+            settingsRepository  = LauncherActivity.settingsRepository
+            ownsInstances       = false
         } else {
-            // Standalone launch (e.g., from IDE) — create local instances
-            ownsInstances = true
-            settingsRepository = SettingsRepository(applicationContext)
-            bridge = ProjectMBridge()
-            audioFrameQueue = AudioFrameQueue(capacity = 4)
+            ownsInstances       = true
+            settingsRepository  = SettingsRepository(applicationContext)
+            bridge              = ProjectMBridge()
+            audioFrameQueue     = AudioFrameQueue(capacity = 4)
             audioCaptureManager = AudioCaptureManager(applicationContext, audioFrameQueue)
             renderer = ProjectMRenderer(
-                bridge = bridge,
-                audioQueue = audioFrameQueue,
+                bridge         = bridge,
+                audioQueue     = audioFrameQueue,
                 presetDirectory = File(filesDir, "presets").absolutePath
             )
             beatDetector = BeatDetector(bridge)
             presetManager = PresetManager(
-                library = PresetLibrary.build(
-                    bundledPresetDir = File(filesDir, "presets"),
-                    parser = PresetParser(bridge)
-                ),
-                renderer = renderer,
+                library      = PresetLibrary.build(File(filesDir, "presets"), PresetParser(bridge)),
+                renderer     = renderer,
                 beatDetector = beatDetector,
                 settingsFlow = settingsRepository.settingsFlow
             )
         }
 
-        // Inflate the root layout (two-layer FrameLayout: surface + overlay)
-        setContentView(R.layout.activity_visualizer)
+        // Build layout programmatically — no XML dependency that could fail
+        val root = FrameLayout(this)
+        root.setBackgroundColor(0xFF000000.toInt())
 
-        // Add the GLSurfaceView into the surface container
-        val surfaceContainer = findViewById<FrameLayout>(R.id.visualizer_surface_container)
+        // GL surface
         surfaceView = VisualizerSurfaceView(this)
         surfaceView.attachRenderer(renderer)
-        surfaceContainer.addView(
-            surfaceView,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-        )
+        root.addView(surfaceView, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        ))
 
-        // Show overlay on first launch; it auto-hides after 3 seconds
-        if (savedInstanceState == null) {
-            showOverlay()
-        }
+        // Overlay — semi-transparent bar at the bottom
+        overlayView = layoutInflater.inflate(R.layout.overlay_simple, root, false)
+        presetNameText = overlayView.findViewById(R.id.overlay_preset_name)
+        hintText       = overlayView.findViewById(R.id.overlay_hints)
+        hintText.text  = "OK = Next  ◀ = Back  Back = Menu"
+        root.addView(overlayView, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
+        ).also { it.gravity = android.view.Gravity.BOTTOM })
+
+        setContentView(root)
+        showOverlay()
     }
 
     override fun onResume() {
@@ -155,14 +122,13 @@ class VisualizerActivity : FragmentActivity(), ComponentCallbacks2 {
         surfaceView.onResume()
         val settings = settingsRepository.get()
         audioCaptureManager.start(settings.audioSource)
-        presetManager.start()
-
-        // Apply configured render resolution from settings
+        if (presetManager.getCurrentPreset() == null) {
+            presetManager.start()
+        }
         val resolution = when {
-            settings.renderWidth == 1280 && settings.renderHeight == 720 -> RenderResolution.HD_720P
-            settings.renderWidth == 1920 && settings.renderHeight == 1080 -> RenderResolution.FHD_1080P
-            settings.renderWidth == -1 && settings.renderHeight == -1 -> RenderResolution.HALF_NATIVE
-            else -> RenderResolution.NATIVE
+            settings.renderWidth == 1280  -> RenderResolution.HD_720P
+            settings.renderWidth == 1920  -> RenderResolution.FHD_1080P
+            else                          -> RenderResolution.NATIVE
         }
         renderer.setRenderResolution(resolution)
     }
@@ -176,84 +142,37 @@ class VisualizerActivity : FragmentActivity(), ComponentCallbacks2 {
 
     override fun onDestroy() {
         super.onDestroy()
-        overlayHideHandler.removeCallbacks(overlayHideRunnable)
+        overlayHideHandler.removeCallbacksAndMessages(null)
         if (ownsInstances) {
             presetManager.release()
             renderer.release()
         }
     }
 
-    // -------------------------------------------------------------------------
-    // D-pad key handling
-    // -------------------------------------------------------------------------
-
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        // Any key press shows the overlay and resets the hide timer
         showOverlay()
-
         return when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_CENTER -> {
-                presetManager.nextPreset(smooth = true)
-                true
-            }
-            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                presetManager.previousPreset()
-                true
-            }
+            KeyEvent.KEYCODE_DPAD_CENTER -> { presetManager.nextPreset(smooth = true); true }
+            KeyEvent.KEYCODE_DPAD_LEFT   -> { presetManager.previousPreset(); true }
             else -> super.onKeyDown(keyCode, event)
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Overlay management
-    // -------------------------------------------------------------------------
-
     private fun showOverlay() {
-        overlayHideHandler.removeCallbacks(overlayHideRunnable)
-
-        if (!overlayVisible) {
-            val fragment = OverlayFragment.newInstance()
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.visualizer_overlay_container, fragment, OVERLAY_TAG)
-                .commitAllowingStateLoss()
-            overlayVisible = true
-        } else {
-            // Update the overlay's preset name in case it changed
-            (supportFragmentManager.findFragmentByTag(OVERLAY_TAG) as? OverlayFragment)
-                ?.updatePresetName(presetManager.getCurrentPreset()?.name ?: "")
-        }
-
-        // Schedule auto-hide
-        overlayHideHandler.postDelayed(overlayHideRunnable, OVERLAY_HIDE_DELAY_MS)
+        overlayHideHandler.removeCallbacksAndMessages(null)
+        presetNameText.text = presetManager.getCurrentPreset()?.name ?: "MilkDrop TV"
+        overlayView.visibility = View.VISIBLE
+        overlayVisible = true
+        overlayHideHandler.postDelayed({
+            overlayView.visibility = View.GONE
+            overlayVisible = false
+        }, OVERLAY_HIDE_DELAY_MS)
     }
-
-    private fun hideOverlay() {
-        val fragment = supportFragmentManager.findFragmentByTag(OVERLAY_TAG)
-        if (fragment != null) {
-            supportFragmentManager.beginTransaction()
-                .remove(fragment)
-                .commitAllowingStateLoss()
-        }
-        overlayVisible = false
-    }
-
-    // -------------------------------------------------------------------------
-    // ComponentCallbacks2 — memory pressure handling
-    // -------------------------------------------------------------------------
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
             renderer.setRenderResolution(RenderResolution.HALF_NATIVE)
         }
-    }
-
-    /**
-     * Called when the surface size is known, so we can store native dimensions
-     * for memory-pressure handling.
-     */
-    fun onSurfaceSizeKnown(width: Int, height: Int) {
-        nativeSurfaceWidth = width
-        nativeSurfaceHeight = height
     }
 }
