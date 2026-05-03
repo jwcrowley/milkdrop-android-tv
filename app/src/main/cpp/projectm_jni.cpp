@@ -17,6 +17,9 @@
 #if __has_include("projectm/src/api/include/projectM-4/projectM.h")
 #  include "projectm/src/api/include/projectM-4/projectM.h"
 #  define PROJECTM_AVAILABLE 1
+#elif __has_include("projectM-4/projectM.h")
+#  include "projectM-4/projectM.h"
+#  define PROJECTM_AVAILABLE 1
 #else
 #  define PROJECTM_AVAILABLE 0
    // Stub types so the rest of the file compiles without the real header
