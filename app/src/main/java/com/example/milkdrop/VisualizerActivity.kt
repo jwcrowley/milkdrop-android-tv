@@ -1,6 +1,6 @@
 package com.example.milkdrop
 
-import android.content.ComponentCallbacks2
+import android.opengl.GLSurfaceView
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,17 +18,16 @@ import com.example.milkdrop.preset.PresetManager
 import com.example.milkdrop.preset.PresetParser
 import com.example.milkdrop.renderer.ProjectMRenderer
 import com.example.milkdrop.renderer.RenderResolution
-import com.example.milkdrop.renderer.VisualizerSurfaceView
 import com.example.milkdrop.settings.SettingsRepository
 import java.io.File
 
-class VisualizerActivity : FragmentActivity(), ComponentCallbacks2 {
+class VisualizerActivity : FragmentActivity() {
 
     companion object {
         private const val OVERLAY_HIDE_DELAY_MS = 3_000L
     }
 
-    private lateinit var surfaceView: VisualizerSurfaceView
+    private lateinit var surfaceView: GLSurfaceView
     private lateinit var bridge: ProjectMBridge
     private lateinit var audioFrameQueue: AudioFrameQueue
     private lateinit var renderer: ProjectMRenderer
@@ -95,9 +94,12 @@ class VisualizerActivity : FragmentActivity(), ComponentCallbacks2 {
         val root = FrameLayout(this)
         root.setBackgroundColor(0xFF000000.toInt())
 
-        // GL surface
-        surfaceView = VisualizerSurfaceView(this)
-        surfaceView.attachRenderer(renderer)
+        // GL surface — correct init order: EGL version → renderer → render mode
+        surfaceView = GLSurfaceView(this).also { gl ->
+            gl.setEGLContextClientVersion(3)
+            gl.setRenderer(renderer)
+            gl.renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
+        }
         root.addView(surfaceView, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT
@@ -171,7 +173,7 @@ class VisualizerActivity : FragmentActivity(), ComponentCallbacks2 {
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
             renderer.setRenderResolution(RenderResolution.HALF_NATIVE)
         }
     }
