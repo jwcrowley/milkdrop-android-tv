@@ -45,4 +45,14 @@
         android:focusable="true"
         android:backgroundTint="#333333" />
 
+    <Button
+        android:id="@+id/btn_crash_log"
+        android:layout_width="400dp"
+        android:layout_height="60dp"
+        android:text="View Crash Log"
+        android:textSize="20sp"
+        android:focusable="true"
+        android:layout_marginTop="32dp"
+        android:backgroundTint="#880000" />
+
 </LinearLayout>

@@ -37,6 +37,29 @@ class MainFragment : Fragment() {
             startActivity(Intent(requireContext(), SettingsActivity::class.java))
         }
 
+        view.findViewById<Button>(R.id.btn_crash_log).setOnClickListener {
+            val log = com.example.milkdrop.CrashLogger.getLog(requireContext())
+            // Show in a scrollable dialog
+            val tv = android.widget.TextView(requireContext()).apply {
+                text = if (log.length > 3000) log.takeLast(3000) else log
+                textSize = 14f
+                setPadding(32, 32, 32, 32)
+                setTextColor(0xFFFFFFFF.toInt())
+                setBackgroundColor(0xFF111111.toInt())
+            }
+            val scroll = android.widget.ScrollView(requireContext()).apply {
+                addView(tv)
+            }
+            android.app.AlertDialog.Builder(requireContext())
+                .setTitle("Crash Log")
+                .setView(scroll)
+                .setPositiveButton("Clear") { _, _ ->
+                    com.example.milkdrop.CrashLogger.clear(requireContext())
+                }
+                .setNegativeButton("Close", null)
+                .show()
+        }
+
         // Focus the first button automatically so D-pad works immediately
         view.findViewById<Button>(R.id.btn_start_visualizer).requestFocus()
     }

@@ -43,6 +43,7 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        CrashLogger.install(this)
         setContentView(R.layout.activity_launcher)
 
         if (!isInitialized) {
