@@ -1,6 +1,11 @@
 package com.example.milkdrop
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.example.milkdrop.audio.AudioCaptureManager
 import com.example.milkdrop.audio.AudioFrameQueue
@@ -17,6 +22,9 @@ import com.example.milkdrop.ui.SplashFragment
 class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListener {
 
     companion object {
+        private const val TAG = "LauncherActivity"
+        private const val REQUEST_AUDIO_PERMISSION = 1001
+
         lateinit var settingsRepository: SettingsRepository
             private set
         lateinit var assetExtractor: AssetExtractor
@@ -50,6 +58,9 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
             initializeSingletons()
         }
 
+        // Request RECORD_AUDIO at runtime — just having it in the manifest isn't enough on API 23+
+        requestAudioPermissionIfNeeded()
+
         if (savedInstanceState != null) return
 
         val presetDir = assetExtractor.getPresetDirectory()
@@ -62,30 +73,61 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
         }
     }
 
+    private fun requestAudioPermissionIfNeeded() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED) {
+            Log.i(TAG, "Requesting RECORD_AUDIO permission")
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.RECORD_AUDIO),
+                REQUEST_AUDIO_PERMISSION
+            )
+        } else {
+            Log.i(TAG, "RECORD_AUDIO permission already granted")
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_AUDIO_PERMISSION) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Log.i(TAG, "RECORD_AUDIO permission granted")
+                // If the visualizer is already running it will pick this up on next onResume.
+                // Nothing else needed here — AudioCaptureManager checks permission on each start().
+            } else {
+                Log.w(TAG, "RECORD_AUDIO permission denied — visualizer will run in silent mode")
+            }
+        }
+    }
+
     override fun onSplashComplete(presetCount: Int) {
         showMainFragment()
     }
 
     private fun initializeSingletons() {
-        settingsRepository = SettingsRepository(applicationContext)
-        assetExtractor     = AssetExtractor(applicationContext)
-        bridge             = ProjectMBridge()
-        presetParser       = PresetParser(bridge)
-        audioFrameQueue    = AudioFrameQueue(capacity = 4)
+        settingsRepository  = SettingsRepository(applicationContext)
+        assetExtractor      = AssetExtractor(applicationContext)
+        bridge              = ProjectMBridge()
+        presetParser        = PresetParser(bridge)
+        audioFrameQueue     = AudioFrameQueue(capacity = 4)
         audioCaptureManager = AudioCaptureManager(applicationContext, audioFrameQueue)
         renderer = ProjectMRenderer(
             bridge = bridge,
             audioQueue = audioFrameQueue,
             presetDirectory = assetExtractor.getPresetDirectory().absolutePath
         )
-        beatDetector = BeatDetector(bridge)
+        beatDetector  = BeatDetector(bridge)
         presetLibrary = PresetLibrary.build(
             bundledPresetDir = assetExtractor.getPresetDirectory(),
             parser = presetParser
         )
         presetManager = PresetManager(
-            library = presetLibrary,
-            renderer = renderer,
+            library      = presetLibrary,
+            renderer     = renderer,
             beatDetector = beatDetector,
             settingsFlow = settingsRepository.settingsFlow
         )
