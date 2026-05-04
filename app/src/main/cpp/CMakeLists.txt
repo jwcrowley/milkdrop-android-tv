@@ -26,8 +26,12 @@ add_library(milkdrop_bridge SHARED projectm_jni.cpp)
 
 target_compile_options(milkdrop_bridge PRIVATE
     -O3 -fvisibility=hidden -fstack-protector-strong -std=c++17
-    -ffast-math -march=armv8-a+simd
+    -ffast-math
 )
+# NEON SIMD — arm64 only (armv7 uses -mfpu=neon instead, but NDK enables it by default)
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+    target_compile_options(milkdrop_bridge PRIVATE -march=armv8-a+simd)
+endif()
 
 if(PROJECTM_AVAILABLE)
     # The actual CMake target is "projectM" (not "libprojectM")
