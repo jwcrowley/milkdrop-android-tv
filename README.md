@@ -8,9 +8,10 @@ A sideloadable Android TV APK that brings the MilkDrop music visualizer experien
 
 - **Full MilkDrop preset support** — loads `.milk` (MilkDrop 2) and `.milk2` (MilkDrop3) preset files
 - **9,795 bundled presets** — the full projectM Cream of the Crop collection across 10 categories: Dancer, Drawing, Fractal, Geometric, Hypnotic, Particles, Reaction, Sparkle, Supernova, Waveform
-- **Real-time audio reactivity** — reacts to music via the device microphone; system audio capture available on Android 10+
-- **Beat-driven transitions** — optional bass-triggered preset changes
-- **Smooth preset cycling** — configurable interval (10–300s) with blend transitions
+- **Flexible audio reactivity** — Auto Pulse generated input by default, plus optional microphone input on devices that expose one
+- **Beat-driven transitions** — optional bass-triggered preset changes with soft-cut cooldowns
+- **Smooth preset cycling** — configurable interval (10–300s) with projectM blend transitions
+- **Favorites and preset lock** — favorite presets, cycle favorites only, or pin the current preset
 - **10-foot TV UI** — D-pad-only navigation, cinematic dark home screen, no touchscreen required
 - **Fire TV & ONN compatible** — sideloadable APK, no Google Play account needed
 - **Dual ABI** — single fat APK supports both 32-bit (armeabi-v7a) and 64-bit (arm64-v8a) ARM devices
@@ -64,9 +65,12 @@ Grab the latest APK from the [Releases page](https://github.com/jwcrowley/milkdr
 
 | Button | Action |
 |---|---|
-| **Select / OK** | Next preset |
+| **▶ Right** | Next preset |
 | **◀ Left** | Previous preset |
-| **Any button** | Show/hide overlay |
+| **▲ Up** | Favorite/unfavorite current preset |
+| **▼ Down** | Toggle favorites-only cycling |
+| **Select / OK** | Show overlay |
+| **Hold Select / OK** | Lock/unlock current preset |
 | **Back** | Return to menu |
 
 ### Main Menu
@@ -78,7 +82,7 @@ The home screen has three options navigable by D-pad:
 
 ### Overlay
 
-Press any button while the visualizer is running to show the overlay. It displays the current preset name, active audio source, and available actions. Auto-hides after 3 seconds.
+Press **Select / OK** while the visualizer is running to show the overlay. It displays the current preset name, favorite status, preset lock status, active audio source, and available actions. Auto-hides after 3 seconds.
 
 ### Settings
 
@@ -86,9 +90,23 @@ Access via the main menu. Options include:
 - Preset cycle interval (10–300 seconds)
 - Transition duration (1–10 seconds)
 - Beat-driven transitions (on/off)
-- Audio source (Microphone / System Audio / Silent)
+- Audio source (Auto Pulse / Microphone / Silent)
 - Display resolution (Native / 720p / 1080p)
 - View crash log (for debugging)
+
+### Audio Sources
+
+Android TV does not provide normal apps with a hidden system-audio loopback device. Capturing real device audio requires Android's media-projection flow, which displays the large recording/casting prompt and is unreliable on TV devices. MilkDrop TV therefore uses these sources:
+
+| Source | Behavior |
+|---|---|
+| **Auto Pulse** | Default. Generates a reactive beat-like signal for projectM. No microphone permission, green privacy dot, or casting prompt. |
+| **Microphone** | Uses a real device microphone if Android exposes one. This is real input, but Android shows the green privacy indicator while active. |
+| **Silent** | No audio input. Useful for testing non-reactive rendering. |
+
+### Preset Control
+
+Use **▲ Up** to mark the current preset as a favorite. Use **▼ Down** to switch automatic cycling between all presets and favorites only. Hold **Select / OK** to lock the current preset; while locked, automatic and beat-driven transitions pause until unlocked.
 
 ### Adding Your Own Presets
 
@@ -179,6 +197,11 @@ Android UI (Kotlin)
 
 | Version | Highlights |
 |---|---|
+| v1.4.10 | Applied soft-cut transition settings, smoother beat transitions, D-pad Right for next preset, long-press OK preset lock, docs refresh |
+| v1.4.9 | Auto Pulse generated audio source, no privacy dot or casting prompt by default |
+| v1.4.8 | Safer audio-source handling, microphone level display, disabled unreliable system-audio path |
+| v1.4.7 | Faster preset startup via stable extraction and preset index caching |
+| v1.4.6 | Favorites support and favorites-only cycling |
 | v1.4.0 | All 9,795 Cream of the Crop presets bundled |
 | v1.3.x | Cinematic TV home screen UI, proper app icon, crash log in Settings |
 | v1.2.0 | 2,000 bundled presets from Cream of the Crop collection |

@@ -42,6 +42,7 @@ class PresetManager(
     companion object {
         private const val TAG = "PresetManager"
         private const val MAX_HISTORY = 10
+        private const val BEAT_TRANSITION_COOLDOWN_MS = 8_000L
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -56,6 +57,8 @@ class PresetManager(
 
     // Currently displayed preset
     private var currentPreset: Preset? = null
+    private var presetLocked = false
+    private var lastBeatTransitionAtMs = 0L
 
     // Coroutine jobs
     private var cycleJob: Job? = null
@@ -113,8 +116,8 @@ class PresetManager(
         renderer.loadPreset(next, smooth)
         Log.d(TAG, "Next preset: ${next.name} (smooth=$smooth)")
 
-        // Restart the cycle timer
-        if (smooth) startCycleTimer()
+        // Restart the cycle timer only when automatic cycling is not pinned.
+        if (smooth && !presetLocked) startCycleTimer()
     }
 
     /** Return to the previously displayed preset. */
@@ -135,7 +138,7 @@ class PresetManager(
         renderer.loadPreset(previous, smooth = true)
         Log.d(TAG, "Previous preset: ${previous.name}")
 
-        startCycleTimer()
+        if (!presetLocked) startCycleTimer()
     }
 
     /** Load a specific preset immediately. */
@@ -143,7 +146,7 @@ class PresetManager(
         currentPreset?.let { pushHistory(it) }
         currentPreset = preset
         renderer.loadPreset(preset, smooth = true)
-        startCycleTimer()
+        if (!presetLocked) startCycleTimer()
         Log.d(TAG, "Loaded specific preset: ${preset.name}")
     }
 
@@ -160,6 +163,19 @@ class PresetManager(
     }
 
     fun isFavoritesOnlyMode(): Boolean = favoritesOnlyMode
+
+    fun isPresetLocked(): Boolean = presetLocked
+
+    fun togglePresetLock(): Boolean {
+        presetLocked = !presetLocked
+        if (presetLocked) {
+            cycleJob?.cancel()
+            cycleJob = null
+        } else {
+            startCycleTimer()
+        }
+        return presetLocked
+    }
 
     fun toggleFavoritesOnlyMode(): Boolean {
         favoritesOnlyMode = !favoritesOnlyMode && favoritePresets().isNotEmpty()
@@ -226,6 +242,7 @@ class PresetManager(
 
     private fun startCycleTimer() {
         cycleJob?.cancel()
+        if (presetLocked) return
         val settings = settingsFlow.value
         val intervalMs = settings.cycleIntervalSeconds * 1000L
         cycleJob = scope.launch {
@@ -239,9 +256,17 @@ class PresetManager(
         beatJob = scope.launch {
             beatDetector.beatFlow.collect { event ->
                 val settings = settingsFlow.value
-                if (settings.beatDrivenTransitions && event == BeatEvent.BASS) {
+                val now = android.os.SystemClock.elapsedRealtime()
+                val cooledDown = now - lastBeatTransitionAtMs >= BEAT_TRANSITION_COOLDOWN_MS
+                if (
+                    settings.beatDrivenTransitions &&
+                    !presetLocked &&
+                    event == BeatEvent.BASS &&
+                    cooledDown
+                ) {
+                    lastBeatTransitionAtMs = now
                     Log.d(TAG, "Beat-driven transition triggered")
-                    nextPreset(smooth = false)
+                    nextPreset(smooth = true)
                 }
             }
         }

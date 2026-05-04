@@ -132,7 +132,7 @@ class VisualizerActivity : FragmentActivity() {
         presetNameText = overlayView.findViewById(R.id.overlay_preset_name)
         hintText       = overlayView.findViewById(R.id.overlay_hints)
         audioIndicatorText = overlayView.findViewById(R.id.overlay_audio_indicator)
-        hintText.text  = "OK = Next  ◀ = Previous  ▲ = Favorite  ▼ = Favorites Mode"
+        hintText.text  = "▶ = Next  ◀ = Previous  ▲ = Favorite  ▼ = Favorites  Hold OK = Lock"
         root.addView(overlayView, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.WRAP_CONTENT
@@ -156,6 +156,7 @@ class VisualizerActivity : FragmentActivity() {
             else                          -> RenderResolution.NATIVE
         }
         renderer.setRenderResolution(resolution)
+        renderer.setTransitionDuration(settings.transitionDurationSeconds)
 
         // Keep the audio indicator in sync with the actual active source
         audioIndicatorJob?.cancel()
@@ -192,11 +193,27 @@ class VisualizerActivity : FragmentActivity() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         showOverlay()
         return when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_CENTER -> { presetManager.nextPreset(smooth = true); true }
+            KeyEvent.KEYCODE_DPAD_RIGHT  -> { presetManager.nextPreset(smooth = true); true }
             KeyEvent.KEYCODE_DPAD_LEFT   -> { presetManager.previousPreset(); true }
             KeyEvent.KEYCODE_DPAD_UP     -> { toggleFavorite(); true }
             KeyEvent.KEYCODE_DPAD_DOWN   -> { toggleFavoritesOnlyMode(); true }
+            KeyEvent.KEYCODE_DPAD_CENTER,
+            KeyEvent.KEYCODE_ENTER       -> {
+                event?.startTracking()
+                true
+            }
             else -> super.onKeyDown(keyCode, event)
+        }
+    }
+
+    override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
+        return when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_CENTER,
+            KeyEvent.KEYCODE_ENTER -> {
+                togglePresetLock()
+                true
+            }
+            else -> super.onKeyLongPress(keyCode, event)
         }
     }
 
@@ -216,7 +233,8 @@ class VisualizerActivity : FragmentActivity() {
         val preset = presetManager.getCurrentPreset() ?: return "MilkDrop TV"
         val favorite = if (favoritesRepository.isFavorite(preset)) "★ " else ""
         val mode = if (presetManager.isFavoritesOnlyMode()) "  •  Favorites" else ""
-        return favorite + preset.name + mode
+        val locked = if (presetManager.isPresetLocked()) "  •  Locked" else ""
+        return favorite + preset.name + mode + locked
     }
 
     private fun toggleFavorite() {
@@ -233,6 +251,16 @@ class VisualizerActivity : FragmentActivity() {
             "Favorites-only cycling"
         } else {
             "All-presets cycling"
+        }
+    }
+
+    private fun togglePresetLock() {
+        val locked = presetManager.togglePresetLock()
+        showOverlay()
+        presetNameText.text = if (locked) {
+            "Preset locked"
+        } else {
+            "Preset cycling resumed"
         }
     }
 
