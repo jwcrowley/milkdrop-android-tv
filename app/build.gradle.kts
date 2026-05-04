@@ -21,10 +21,11 @@ android {
 
         externalNativeBuild {
             cmake {
-                cppFlags("-std=c++17", "-frtti", "-fexceptions")
+                cppFlags("-std=c++17", "-frtti", "-fexceptions", "-O3", "-ffast-math")
                 arguments(
                     "-DANDROID_STL=c++_shared",
-                    "-DANDROID_PLATFORM=android-21"
+                    "-DANDROID_PLATFORM=android-21",
+                    "-DCMAKE_BUILD_TYPE=Release"
                 )
             }
         }

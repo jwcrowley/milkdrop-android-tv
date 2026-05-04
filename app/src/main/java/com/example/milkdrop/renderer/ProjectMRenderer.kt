@@ -32,6 +32,8 @@ class ProjectMRenderer(
     @Volatile private var pendingSmooth: Boolean = true
     @Volatile private var transitionDuration: Float = 3f
     @Volatile private var beatDetector: BeatDetector? = null
+    @Volatile private var inTransition: Boolean = false
+    private var transitionFrameCount: Int = 0
 
     // Current render resolution setting
     @Volatile var renderResolution: RenderResolution = RenderResolution.NATIVE
@@ -65,11 +67,28 @@ class ProjectMRenderer(
             bridge.feedAudio(frame.pcmData, frame.channelCount)
         }
 
-        // Apply any pending preset load
+        // Apply any pending preset load — drop to half-res during transition
         val preset = pendingPreset
         if (preset != null) {
             pendingPreset = null
             bridge.loadPreset(preset.filePath, pendingSmooth)
+            if (pendingSmooth) {
+                // Drop resolution for the duration of the blend transition
+                inTransition = true
+                transitionFrameCount = (transitionDuration * 30f).toInt().coerceAtLeast(30)
+                val (w, h) = resolveTransitionResolution()
+                bridge.reinitialize(w, h)
+            }
+        }
+
+        // Restore full resolution once transition frames are exhausted
+        if (inTransition) {
+            transitionFrameCount--
+            if (transitionFrameCount <= 0) {
+                inTransition = false
+                val (w, h) = resolveResolution()
+                bridge.reinitialize(w, h)
+            }
         }
 
         bridge.renderFrame()
@@ -138,5 +157,11 @@ class ProjectMRenderer(
             RenderResolution.HD_720P    -> Pair(1280, 720)
             RenderResolution.FHD_1080P  -> Pair(1920, 1080)
         }
+    }
+
+    /** Half the normal resolution — used during blend transitions to keep framerate smooth. */
+    private fun resolveTransitionResolution(): Pair<Int, Int> {
+        val (w, h) = resolveResolution()
+        return Pair((w / 2).coerceAtLeast(320), (h / 2).coerceAtLeast(180))
     }
 }

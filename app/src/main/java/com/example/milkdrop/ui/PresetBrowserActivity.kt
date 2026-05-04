@@ -55,8 +55,8 @@ class PresetBrowserActivity : FragmentActivity() {
                     }
                 }
                 .entries
-                .sortedBy { it.key }
-                .map { it.key to it.value.sortedBy { p -> p.name.lowercase() } }
+                .sortedBy { it.key.trimStart { c -> !c.isLetter() }.lowercase() }
+                .map { it.key to it.value.sortedBy { p -> p.name.trimStart { c -> !c.isLetter() }.lowercase() } }
             val favorites = LauncherActivity.presetLibrary.presets
                 .filter { it.id in favoriteIds }
                 .sortedBy { it.name.lowercase() }

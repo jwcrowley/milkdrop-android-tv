@@ -25,7 +25,8 @@ endif()
 add_library(milkdrop_bridge SHARED projectm_jni.cpp)
 
 target_compile_options(milkdrop_bridge PRIVATE
-    -O2 -fvisibility=hidden -fstack-protector-strong -std=c++17
+    -O3 -fvisibility=hidden -fstack-protector-strong -std=c++17
+    -ffast-math -march=armv8-a+simd
 )
 
 if(PROJECTM_AVAILABLE)
