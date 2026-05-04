@@ -1,93 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- MilkDrop TV launcher icon foreground — stylized waveform/visualizer -->
+<!-- MilkDrop TV launcher icon — equalizer bars using path elements -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Outer glow ring -->
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#7B2FBE"
-        android:strokeWidth="2"
-        android:pathData="M54,18 A36,36 0 1,1 53.99,18" />
-
-    <!-- Visualizer bars — center-aligned, varying heights like an equalizer -->
-    <!-- Bar 1 -->
-    <rect
-        android:fillColor="#E040FB"
-        android:left="22"
-        android:top="44"
-        android:right="27"
-        android:bottom="64" />
+    <!-- Bar 1 (short) -->
+    <path android:fillColor="#E040FB"
+        android:pathData="M22,44 L27,44 L27,64 L22,64 Z" />
     <!-- Bar 2 -->
-    <rect
-        android:fillColor="#CE93D8"
-        android:left="30"
-        android:top="36"
-        android:right="35"
-        android:bottom="64" />
-    <!-- Bar 3 (tallest) -->
-    <rect
-        android:fillColor="#EA80FC"
-        android:left="38"
-        android:top="26"
-        android:right="43"
-        android:bottom="64" />
-    <!-- Bar 4 (tallest) -->
-    <rect
-        android:fillColor="#FFFFFF"
-        android:left="46"
-        android:top="22"
-        android:right="51"
-        android:bottom="64" />
+    <path android:fillColor="#CE93D8"
+        android:pathData="M30,36 L35,36 L35,64 L30,64 Z" />
+    <!-- Bar 3 -->
+    <path android:fillColor="#EA80FC"
+        android:pathData="M38,26 L43,26 L43,64 L38,64 Z" />
+    <!-- Bar 4 (tallest, white) -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M46,22 L51,22 L51,64 L46,64 Z" />
     <!-- Bar 5 -->
-    <rect
-        android:fillColor="#EA80FC"
-        android:left="54"
-        android:top="28"
-        android:right="59"
-        android:bottom="64" />
+    <path android:fillColor="#EA80FC"
+        android:pathData="M54,28 L59,28 L59,64 L54,64 Z" />
     <!-- Bar 6 -->
-    <rect
-        android:fillColor="#CE93D8"
-        android:left="62"
-        android:top="38"
-        android:right="67"
-        android:bottom="64" />
-    <!-- Bar 7 -->
-    <rect
-        android:fillColor="#E040FB"
-        android:left="70"
-        android:top="48"
-        android:right="75"
-        android:bottom="64" />
+    <path android:fillColor="#CE93D8"
+        android:pathData="M62,38 L67,38 L67,64 L62,64 Z" />
+    <!-- Bar 7 (short) -->
+    <path android:fillColor="#E040FB"
+        android:pathData="M70,48 L75,48 L75,64 L70,64 Z" />
 
     <!-- Baseline -->
-    <path
-        android:strokeColor="#7B2FBE"
+    <path android:strokeColor="#BB86FC"
         android:strokeWidth="1.5"
+        android:fillColor="#00000000"
         android:pathData="M18,64 L90,64" />
 
-    <!-- Reflection (faded bars below baseline) -->
-    <rect
-        android:fillColor="#40E040FB"
-        android:left="38"
-        android:top="64"
-        android:right="43"
-        android:bottom="74" />
-    <rect
-        android:fillColor="#40FFFFFF"
-        android:left="46"
-        android:top="64"
-        android:right="51"
-        android:bottom="78" />
-    <rect
-        android:fillColor="#40EA80FC"
-        android:left="54"
-        android:top="64"
-        android:right="59"
-        android:bottom="72" />
+    <!-- Reflection bars (faded) -->
+    <path android:fillColor="#40EA80FC"
+        android:pathData="M38,64 L43,64 L43,74 L38,74 Z" />
+    <path android:fillColor="#40FFFFFF"
+        android:pathData="M46,64 L51,64 L51,78 L46,78 Z" />
+    <path android:fillColor="#40EA80FC"
+        android:pathData="M54,64 L59,64 L59,72 L54,72 Z" />
 
 </vector>
