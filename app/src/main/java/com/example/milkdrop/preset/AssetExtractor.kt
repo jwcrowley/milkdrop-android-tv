@@ -44,10 +44,12 @@ class AssetExtractor(private val context: Context) {
         // Check if extraction is needed
         if (versionFile.exists()) {
             val storedVersion = versionFile.readText().trim().toIntOrNull()
-            if (storedVersion == currentVersion && presetDir.exists() && presetDir.list()?.isNotEmpty() == true) {
+            if (storedVersion == currentVersion && presetDir.exists()) {
                 val count = countPresets(presetDir)
-                Log.i(TAG, "Presets already extracted (version $currentVersion, count=$count)")
-                return@withContext count
+                if (count > 0) {
+                    Log.i(TAG, "Presets already extracted (version $currentVersion, count=$count)")
+                    return@withContext count
+                }
             }
         }
 

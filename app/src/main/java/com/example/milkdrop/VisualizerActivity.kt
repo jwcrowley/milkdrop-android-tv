@@ -10,8 +10,10 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
 import com.example.milkdrop.audio.AudioCaptureManager
 import com.example.milkdrop.audio.AudioFrameQueue
+import com.example.milkdrop.audio.AudioSourceType
 import com.example.milkdrop.audio.BeatDetector
 import com.example.milkdrop.preset.PresetLibrary
 import com.example.milkdrop.preset.PresetManager
@@ -20,6 +22,8 @@ import com.example.milkdrop.renderer.ProjectMRenderer
 import com.example.milkdrop.renderer.RenderResolution
 import com.example.milkdrop.settings.SettingsRepository
 import java.io.File
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 class VisualizerActivity : FragmentActivity() {
 
@@ -135,6 +139,18 @@ class VisualizerActivity : FragmentActivity() {
             else                          -> RenderResolution.NATIVE
         }
         renderer.setRenderResolution(resolution)
+
+        // Keep the audio indicator in sync with the actual active source
+        lifecycleScope.launch {
+            audioCaptureManager.activeSourceFlow.collectLatest { source ->
+                val label = when (source) {
+                    AudioSourceType.MICROPHONE   -> "🎤 Mic"
+                    AudioSourceType.SYSTEM_AUDIO -> "🔊 System"
+                    AudioSourceType.SILENT       -> "🔇 Silent"
+                }
+                audioIndicatorText.text = label
+            }
+        }
     }
 
     override fun onPause() {
@@ -165,13 +181,7 @@ class VisualizerActivity : FragmentActivity() {
     private fun showOverlay() {
         overlayHideHandler.removeCallbacksAndMessages(null)
         presetNameText.text = presetManager.getCurrentPreset()?.name ?: "MilkDrop TV"
-        // Update audio source indicator
-        val sourceLabel = when (audioCaptureManager.activeSourceFlow.value) {
-            com.example.milkdrop.audio.AudioSourceType.MICROPHONE   -> "🎤 Mic"
-            com.example.milkdrop.audio.AudioSourceType.SYSTEM_AUDIO -> "🔊 System"
-            com.example.milkdrop.audio.AudioSourceType.SILENT       -> "🔇 Silent"
-        }
-        audioIndicatorText.text = sourceLabel
+        // Audio indicator is kept live by the flow collector in onResume — no snapshot read needed
         overlayView.visibility = View.VISIBLE
         overlayVisible = true
         overlayHideHandler.postDelayed({
