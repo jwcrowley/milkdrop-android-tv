@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "com.example.milkdrop"
     compileSdk = 35
+    ndkVersion = "25.2.9519653"
 
     defaultConfig {
         applicationId = "com.example.milkdrop"

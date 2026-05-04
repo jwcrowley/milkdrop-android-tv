@@ -2,6 +2,8 @@
 
 A sideloadable Android TV APK that brings the MilkDrop music visualizer experience to Fire TV Sticks, ONN Android TV boxes, and any Android TV device. Built on [projectM](https://github.com/projectM-visualizer/projectm) — the open-source MilkDrop-compatible rendering engine.
 
+Dedicated to HB and TA.
+
 ---
 
 ## Features
