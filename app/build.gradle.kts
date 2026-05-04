@@ -72,6 +72,7 @@ android {
 dependencies {
     implementation("androidx.leanback:leanback:1.2.0")
     implementation("androidx.preference:preference-ktx:1.2.1")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     // NO Google Play Services dependencies
 

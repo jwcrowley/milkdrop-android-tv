@@ -8,17 +8,16 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.example.milkdrop.LauncherActivity
 import com.example.milkdrop.R
 import com.example.milkdrop.preset.AssetExtractor
 import kotlinx.coroutines.launch
 
 /**
- * Shown on first launch (or after an app update) while preset files are being
- * extracted from the APK assets to internal storage.
- *
- * Automatically navigates to [LauncherActivity]'s main content once extraction
- * completes. On subsequent launches, extraction is skipped and this fragment
- * is not shown.
+ * Shown on every launch while preset extraction is checked/run.
+ * extractPresetsIfNeeded() is fast (milliseconds) if already up to date,
+ * or shows a progress message while extracting on first launch / after update.
+ * After extraction, rebuilds the PresetLibrary so the manager has all presets.
  */
 class SplashFragment : Fragment() {
 
@@ -34,7 +33,7 @@ class SplashFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         progressBar = view.findViewById(R.id.splash_progress)
-        statusText = view.findViewById(R.id.splash_status)
+        statusText  = view.findViewById(R.id.splash_status)
 
         statusText.text = getString(R.string.splash_loading)
         progressBar.isIndeterminate = true
@@ -43,12 +42,18 @@ class SplashFragment : Fragment() {
             val extractor = AssetExtractor(requireContext())
             val count = extractor.extractPresetsIfNeeded()
             statusText.text = getString(R.string.splash_loaded, count)
-            // Notify the hosting activity that extraction is complete
+
+            // Rebuild the preset library now that extraction is confirmed complete.
+            // This ensures PresetManager shuffles from all extracted presets, not
+            // whatever was on disk when initializeSingletons() ran at startup.
+            if (LauncherActivity.isInitialized) {
+                LauncherActivity.rebuildPresetLibrary()
+            }
+
             (activity as? SplashCompleteListener)?.onSplashComplete(count)
         }
     }
 
-    /** Callback interface for the hosting Activity. */
     interface SplashCompleteListener {
         fun onSplashComplete(presetCount: Int)
     }

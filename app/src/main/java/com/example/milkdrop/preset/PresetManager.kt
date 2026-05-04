@@ -33,7 +33,7 @@ import java.util.ArrayDeque
  * collected and [nextPreset] is triggered on each [BeatEvent.BASS].
  */
 class PresetManager(
-    private val library: PresetLibrary,
+    private var library: PresetLibrary,
     private val renderer: ProjectMRenderer,
     private val beatDetector: BeatDetector,
     private val settingsFlow: StateFlow<AppSettings>
@@ -155,6 +155,14 @@ class PresetManager(
     fun release() {
         stop()
         scope.cancel()
+    }
+
+    /** Rebuild the shuffle from a new library (called after preset extraction completes). */
+    fun rebuildLibrary(newLibrary: PresetLibrary) {
+        library = newLibrary
+        if (library.size() > 0) {
+            rebuildShuffle()
+        }
     }
 
     // -------------------------------------------------------------------------

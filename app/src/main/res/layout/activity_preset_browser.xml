@@ -1,10 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    Root container for PresetBrowserActivity.
-    Hosts PresetBrowserFragment (VerticalGridSupportFragment).
--->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/preset_browser_container"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000" />
+    android:orientation="vertical"
+    android:background="#0A0A0F"
+    android:padding="48dp">
+
+    <!-- Header -->
+    <TextView
+        android:id="@+id/preset_browser_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Browse Presets"
+        android:textColor="#FFFFFF"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:id="@+id/preset_browser_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#88FFFFFF"
+        android:textSize="16sp"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#22FFFFFF"
+        android:layout_marginBottom="16dp" />
+
+    <!-- List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/preset_browser_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:focusable="true"
+        android:descendantFocusability="afterDescendants" />
+
+</LinearLayout>

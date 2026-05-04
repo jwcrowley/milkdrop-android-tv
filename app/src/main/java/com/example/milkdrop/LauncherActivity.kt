@@ -47,6 +47,15 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
             private set
         var isInitialized: Boolean = false
             private set
+
+        /** Called after extraction completes to rebuild the library with all extracted presets. */
+        fun rebuildPresetLibrary() {
+            presetLibrary = PresetLibrary.build(
+                bundledPresetDir = assetExtractor.getPresetDirectory(),
+                parser = presetParser
+            )
+            presetManager.rebuildLibrary(presetLibrary)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,14 +72,10 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
 
         if (savedInstanceState != null) return
 
-        val presetDir = assetExtractor.getPresetDirectory()
-        val presetsReady = presetDir.exists() && presetDir.list()?.isNotEmpty() == true
-
-        if (presetsReady) {
-            showMainFragment()
-        } else {
-            showSplashFragment()
-        }
+        // Always go through SplashFragment — it runs extractPresetsIfNeeded() which checks
+        // the version stamp and re-extracts if the app was updated. Only skips if already
+        // extracted for the current versionCode.
+        showSplashFragment()
     }
 
     private fun requestAudioPermissionIfNeeded() {
