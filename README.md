@@ -2,18 +2,16 @@
 
 A sideloadable Android TV APK that brings the MilkDrop music visualizer experience to Fire TV Sticks, ONN Android TV boxes, and any Android TV device. Built on [projectM](https://github.com/projectM-visualizer/projectm) — the open-source MilkDrop-compatible rendering engine.
 
-![MilkDrop Android TV](https://raw.githubusercontent.com/milkdrop2077/MilkDrop3/main/MilkDrop3.jpg)
-
 ---
 
 ## Features
 
 - **Full MilkDrop preset support** — loads `.milk` (MilkDrop 2) and `.milk2` (MilkDrop3) preset files
-- **200+ bundled presets** — curated from the projectM Cream of the Crop pack, the classic MilkDrop 2 collection, and the MilkDrop3 community library
+- **2000+ bundled presets** — curated from the projectM Cream of the Crop collection across 10 categories: Dancer, Drawing, Fractal, Geometric, Hypnotic, Particles, Reaction, Sparkle, Supernova, Waveform
 - **Real-time audio reactivity** — reacts to music via the device microphone; system audio capture available on Android 10+
 - **Beat-driven transitions** — optional bass-triggered preset changes
 - **Smooth preset cycling** — configurable interval (10–300s) with blend transitions
-- **10-foot TV UI** — D-pad-only navigation, no touchscreen required
+- **10-foot TV UI** — D-pad-only navigation, cinematic dark home screen, no touchscreen required
 - **Fire TV & ONN compatible** — sideloadable APK, no Google Play account needed
 - **Dual ABI** — single fat APK supports both 32-bit (armeabi-v7a) and 64-bit (arm64-v8a) ARM devices
 
@@ -32,33 +30,37 @@ A sideloadable Android TV APK that brings the MilkDrop music visualizer experien
 
 ## Installation
 
+### Download
+
+Grab the latest APK from the [Releases page](https://github.com/jwcrowley/milkdrop-android-tv/releases/latest).
+
 ### Via ADB (recommended for developers)
 
 1. Enable **ADB Debugging** on your device:
    - Fire TV: Settings → My Fire TV → Developer Options → ADB Debugging ON
-   - Android TV: Settings → Device Preferences → About → Build (click 7×) → Developer Options → USB Debugging ON
+   - Android TV / ONN: Settings → Device Preferences → About → Build (click 7×) → Developer Options → USB Debugging ON
 
-2. Connect via ADB (USB or network):
+2. Connect via ADB (network):
    ```bash
    adb connect <device-ip>:5555
    ```
 
-3. Install the APK:
+3. Install:
    ```bash
    adb install -r milkdrop-tv.apk
    ```
 
-### Via Downloader App (Fire TV)
+### Via Downloader App (Fire TV / ONN)
 
-1. Enable **Apps from Unknown Sources**: Settings → My Fire TV → Developer Options → Install Unknown Apps → Downloader → ON
-2. Install the [Downloader app](https://www.amazon.com/AFTVnews-com-Downloader/dp/B01N0BP507) from the Amazon Appstore
-3. Open Downloader, enter the APK URL, and follow the prompts
+1. Enable **Apps from Unknown Sources** in Developer Options
+2. Install the [Downloader app](https://www.amazon.com/AFTVnews-com-Downloader/dp/B01N0BP507) from the Amazon Appstore (or Google Play on ONN)
+3. Open Downloader, enter the APK URL from the releases page, and follow the prompts
 
 ---
 
 ## Usage
 
-### Controls
+### Navigation
 
 | Button | Action |
 |---|---|
@@ -67,9 +69,26 @@ A sideloadable Android TV APK that brings the MilkDrop music visualizer experien
 | **Any button** | Show/hide overlay |
 | **Back** | Return to menu |
 
+### Main Menu
+
+The home screen has three options navigable by D-pad:
+- **▶ Start Visualizer** — launches fullscreen MilkDrop
+- **⊞ Browse Presets** — browse and select specific presets
+- **⚙ Settings** — configure cycle interval, audio source, resolution, and more
+
 ### Overlay
 
 Press any button while the visualizer is running to show the overlay. It displays the current preset name, active audio source, and available actions. Auto-hides after 3 seconds.
+
+### Settings
+
+Access via the main menu. Options include:
+- Preset cycle interval (10–300 seconds)
+- Transition duration (1–10 seconds)
+- Beat-driven transitions (on/off)
+- Audio source (Microphone / System Audio / Silent)
+- Display resolution (Native / 720p / 1080p)
+- View crash log (for debugging)
 
 ### Adding Your Own Presets
 
@@ -100,39 +119,35 @@ cd milkdrop-android-tv
 git submodule update --init --recursive
 ```
 
-### Add Presets
+### Add More Presets (optional)
 
-The bundled preset directories ship with placeholder files. To build with a full preset library, populate the following directories before building:
-
+The repo ships with 2000 curated presets. To add more, populate the directories under:
 ```
-app/src/main/assets/presets/projectm-cream/   # ~100 presets
-app/src/main/assets/presets/milkdrop2/         # ~60 presets
-app/src/main/assets/presets/milkdrop3/         # ~50 presets
+app/src/main/assets/presets/
 ```
-
 See [`app/src/main/assets/presets/README.md`](app/src/main/assets/presets/README.md) for sources.
 
 ### Build
 
 ```bash
-# Debug APK
 ./gradlew assembleDebug
-
 # Output: app/build/outputs/apk/debug/app-debug.apk
 ```
 
-See [`BUILDING.md`](BUILDING.md) for release builds and signing.
+See [`BUILDING.md`](BUILDING.md) for release builds, signing, and sideloading instructions.
 
 ---
 
 ## Architecture
 
 ```
-Android UI (Kotlin / Leanback)
-    └── Application Logic (Kotlin)
+Android UI (Kotlin)
+    └── Application Logic (Kotlin / Coroutines)
             └── NDK Bridge (C++ JNI)
                     └── projectM Core (C++)
 ```
+
+**Threading:** UI thread → Main thread (coroutines) → Render thread (GL, owns EGL context) ← Audio thread (PCM capture via lock-free ring buffer)
 
 **Key components:**
 
@@ -142,21 +157,34 @@ Android UI (Kotlin / Leanback)
 | `ProjectMRenderer` | `GLSurfaceView.Renderer` driving the render loop |
 | `AudioCaptureManager` | Selects and manages the active audio source |
 | `BeatDetector` | Rising-edge transient detection for beat-driven transitions |
-| `PresetManager` | Fisher-Yates shuffle, history, and cycle timer |
+| `PresetManager` | Fisher-Yates shuffle, 10-entry history, cycle timer |
 | `PresetLibrary` | Indexes bundled and user preset files |
+| `AssetExtractor` | Copies bundled presets to internal storage on first launch |
 | `SettingsRepository` | Persists user preferences via `SharedPreferences` |
-
-**Threading model:** UI thread → Main thread (Kotlin coroutines) → Render thread (GL) ← Audio thread (PCM capture). Audio frames pass through a lock-free ring buffer to the render thread.
+| `CrashLogger` | Writes uncaught exceptions to Downloads for debugging |
 
 ---
 
 ## Preset Sources
 
-| Collection | Source |
+| Collection | Source | Count |
+|---|---|---|
+| projectM Cream of the Crop | [projectM-visualizer/presets-cream-of-the-crop](https://github.com/projectM-visualizer/presets-cream-of-the-crop) | 2000 |
+| MilkDrop 2 Classic | [Geiss Works](https://www.geisswerks.com/milkdrop/) | bundled |
+| MilkDrop3 Community | [milkdrop2077/MilkDrop3](https://github.com/milkdrop2077/MilkDrop3) | bundled |
+
+---
+
+## Releases
+
+| Version | Highlights |
 |---|---|
-| projectM Cream of the Crop | [projectM GitHub Releases](https://github.com/projectM-visualizer/projectm/releases) |
-| MilkDrop 2 Classic | [Geiss Works / projectM repo](https://www.geisswerks.com/milkdrop/) |
-| MilkDrop3 Community | [MilkDrop3 GitHub](https://github.com/milkdrop2077/MilkDrop3) |
+| v1.3.x | Cinematic TV home screen UI, proper app icon, crash log in Settings |
+| v1.2.0 | 2000 bundled presets from Cream of the Crop collection |
+| v1.1.5 | First working build with real projectM rendering |
+| v1.0.9 | Fixed GLSurfaceView crash, visualizer runs without crashing |
+| v1.0.5 | Fixed black screen on main menu |
+| v1.0.0 | Initial release (stub rendering) |
 
 ---
 
@@ -165,3 +193,5 @@ Android UI (Kotlin / Leanback)
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 projectM is licensed under the LGPL 2.1. See the [projectM repository](https://github.com/projectM-visualizer/projectm) for details.
+
+Preset files from the Cream of the Crop collection are licensed under their respective original licenses — see the [presets repository](https://github.com/projectM-visualizer/presets-cream-of-the-crop) for details.
