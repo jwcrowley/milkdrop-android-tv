@@ -44,6 +44,7 @@ class VisualizerActivity : FragmentActivity() {
     private lateinit var overlayView: View
     private lateinit var presetNameText: TextView
     private lateinit var hintText: TextView
+    private lateinit var audioIndicatorText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,7 +110,8 @@ class VisualizerActivity : FragmentActivity() {
         overlayView = layoutInflater.inflate(R.layout.overlay_simple, root, false)
         presetNameText = overlayView.findViewById(R.id.overlay_preset_name)
         hintText       = overlayView.findViewById(R.id.overlay_hints)
-        hintText.text  = "OK = Next  ◀ = Back  Back = Menu"
+        audioIndicatorText = overlayView.findViewById(R.id.overlay_audio_indicator)
+        hintText.text  = "OK = Next  ◀ = Previous  Back = Menu"
         root.addView(overlayView, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.WRAP_CONTENT
@@ -163,6 +165,13 @@ class VisualizerActivity : FragmentActivity() {
     private fun showOverlay() {
         overlayHideHandler.removeCallbacksAndMessages(null)
         presetNameText.text = presetManager.getCurrentPreset()?.name ?: "MilkDrop TV"
+        // Update audio source indicator
+        val sourceLabel = when (audioCaptureManager.activeSourceFlow.value) {
+            com.example.milkdrop.audio.AudioSourceType.MICROPHONE   -> "🎤 Mic"
+            com.example.milkdrop.audio.AudioSourceType.SYSTEM_AUDIO -> "🔊 System"
+            com.example.milkdrop.audio.AudioSourceType.SILENT       -> "🔇 Silent"
+        }
+        audioIndicatorText.text = sourceLabel
         overlayView.visibility = View.VISIBLE
         overlayVisible = true
         overlayHideHandler.postDelayed({

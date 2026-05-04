@@ -5,14 +5,13 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import androidx.fragment.app.Fragment
 import com.example.milkdrop.R
 import com.example.milkdrop.VisualizerActivity
 
 /**
- * Simple main menu fragment — three D-pad-navigable buttons.
- * Uses a plain Fragment + LinearLayout to avoid Leanback theme dependencies.
+ * Main menu fragment with a cinematic TV-optimized layout.
+ * D-pad navigable — no touchscreen required.
  */
 class MainFragment : Fragment() {
 
@@ -25,49 +24,19 @@ class MainFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        view.findViewById<Button>(R.id.btn_start_visualizer).setOnClickListener {
-            startActivity(Intent(requireContext(), VisualizerActivity::class.java))
+        view.findViewById<View>(R.id.btn_start_visualizer).apply {
+            setOnClickListener {
+                startActivity(Intent(requireContext(), VisualizerActivity::class.java))
+            }
+            requestFocus()
         }
 
-        view.findViewById<Button>(R.id.btn_browse_presets).setOnClickListener {
+        view.findViewById<View>(R.id.btn_browse_presets).setOnClickListener {
             startActivity(Intent(requireContext(), PresetBrowserActivity::class.java))
         }
 
-        view.findViewById<Button>(R.id.btn_settings).setOnClickListener {
+        view.findViewById<View>(R.id.btn_settings).setOnClickListener {
             startActivity(Intent(requireContext(), SettingsActivity::class.java))
         }
-
-        view.findViewById<Button>(R.id.btn_crash_log).setOnClickListener {
-            val log = com.example.milkdrop.CrashLogger.getLog(requireContext())
-            val tv = android.widget.TextView(requireContext()).apply {
-                text = if (log.length > 3000) log.takeLast(3000) else log
-                textSize = 14f
-                setPadding(32, 32, 32, 32)
-                setTextColor(0xFFFFFFFF.toInt())
-                setBackgroundColor(0xFF111111.toInt())
-            }
-            val scroll = android.widget.ScrollView(requireContext()).apply {
-                addView(tv)
-            }
-            android.app.AlertDialog.Builder(requireContext())
-                .setTitle("Crash Log")
-                .setView(scroll)
-                .setPositiveButton("Share") { _, _ ->
-                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(android.content.Intent.EXTRA_SUBJECT, "MilkDrop TV Crash Log")
-                        putExtra(android.content.Intent.EXTRA_TEXT, log)
-                    }
-                    startActivity(android.content.Intent.createChooser(shareIntent, "Share crash log"))
-                }
-                .setNeutralButton("Clear") { _, _ ->
-                    com.example.milkdrop.CrashLogger.clear(requireContext())
-                }
-                .setNegativeButton("Close", null)
-                .show()
-        }
-
-        // Focus the first button automatically so D-pad works immediately
-        view.findViewById<Button>(R.id.btn_start_visualizer).requestFocus()
     }
 }

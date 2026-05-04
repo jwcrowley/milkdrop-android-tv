@@ -33,6 +33,7 @@ class SettingsFragment : GuidedStepSupportFragment() {
         private const val ACTION_BEAT_DRIVEN       = 3L
         private const val ACTION_AUDIO_SOURCE      = 4L
         private const val ACTION_RESOLUTION        = 5L
+        private const val ACTION_CRASH_LOG         = 6L
         private const val ACTION_CONFIRM           = 100L
         private const val ACTION_CANCEL            = 101L
 
@@ -119,6 +120,15 @@ class SettingsFragment : GuidedStepSupportFragment() {
                 .build()
         )
 
+        // 6. Crash log (developer tool)
+        actions.add(
+            GuidedAction.Builder(requireContext())
+                .id(ACTION_CRASH_LOG)
+                .title("View Crash Log")
+                .description("Share or clear the debug crash log")
+                .build()
+        )
+
         // Confirm / Cancel
         actions.add(
             GuidedAction.Builder(requireContext())
@@ -159,6 +169,33 @@ class SettingsFragment : GuidedStepSupportFragment() {
                 workingSettings = workingSettings.copy(beatDrivenTransitions = toggled)
                 action.description = beatDrivenLabel(toggled)
                 notifyActionChanged(findActionPositionById(ACTION_BEAT_DRIVEN))
+            }
+
+            ACTION_CRASH_LOG -> {
+                val ctx = requireContext()
+                val log = com.example.milkdrop.CrashLogger.getLog(ctx)
+                val tv = android.widget.TextView(ctx).apply {
+                    text = if (log.length > 3000) log.takeLast(3000) else log
+                    textSize = 13f
+                    setPadding(32, 32, 32, 32)
+                    setTextColor(0xFFCCCCCC.toInt())
+                    setBackgroundColor(0xFF0D0D0D.toInt())
+                }
+                val scroll = android.widget.ScrollView(ctx).apply { addView(tv) }
+                android.app.AlertDialog.Builder(ctx)
+                    .setTitle("Crash Log")
+                    .setView(scroll)
+                    .setPositiveButton("Share") { _, _ ->
+                        val i = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(android.content.Intent.EXTRA_SUBJECT, "MilkDrop TV Crash Log")
+                            putExtra(android.content.Intent.EXTRA_TEXT, log)
+                        }
+                        startActivity(android.content.Intent.createChooser(i, "Share crash log"))
+                    }
+                    .setNeutralButton("Clear") { _, _ -> com.example.milkdrop.CrashLogger.clear(ctx) }
+                    .setNegativeButton("Close", null)
+                    .show()
             }
 
             ACTION_CONFIRM -> {

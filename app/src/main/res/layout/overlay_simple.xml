@@ -3,24 +3,51 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#CC000000"
-    android:padding="16dp">
+    android:background="@drawable/overlay_bg"
+    android:paddingStart="48dp"
+    android:paddingEnd="48dp"
+    android:paddingTop="20dp"
+    android:paddingBottom="20dp">
 
+    <!-- Preset name -->
     <TextView
         android:id="@+id/overlay_preset_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textColor="#FFFFFF"
-        android:textSize="28sp"
+        android:textSize="26sp"
         android:textStyle="bold"
-        android:text="MilkDrop TV" />
+        android:text="MilkDrop TV"
+        android:shadowColor="#000000"
+        android:shadowDx="1"
+        android:shadowDy="1"
+        android:shadowRadius="4" />
 
-    <TextView
-        android:id="@+id/overlay_hints"
-        android:layout_width="wrap_content"
+    <!-- Divider + hints row -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#AAFFFFFF"
-        android:textSize="20sp"
-        android:text="OK = Next  ◀ = Back  Back = Menu" />
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/overlay_hints"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="#AAFFFFFF"
+            android:textSize="16sp"
+            android:text="OK = Next  ◀ = Previous  Back = Menu" />
+
+        <TextView
+            android:id="@+id/overlay_audio_indicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#BB86FC"
+            android:textSize="16sp"
+            android:text="🎤 Mic" />
+
+    </LinearLayout>
 
 </LinearLayout>

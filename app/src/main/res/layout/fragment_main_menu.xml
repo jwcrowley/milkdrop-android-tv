@@ -1,58 +1,173 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+    Main menu — dark cinematic TV layout.
+    Left side: branding. Right side: action cards.
+-->
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:background="#000000"
-    android:padding="48dp">
+    android:background="#0A0A0F">
 
+    <!-- Subtle gradient overlay at the top -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:background="@drawable/gradient_top"
+        android:layout_alignParentTop="true" />
+
+    <!-- Left branding panel -->
+    <LinearLayout
+        android:id="@+id/branding_panel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_centerVertical="true"
+        android:layout_marginStart="80dp"
+        android:layout_marginEnd="60dp">
+
+        <!-- App icon -->
+        <ImageView
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:src="@drawable/ic_launcher_foreground"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="MilkDrop"
+            android:textColor="#FFFFFF"
+            android:textSize="52sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.05"
+            android:fontFamily="sans-serif-light" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="TV"
+            android:textColor="#BB86FC"
+            android:textSize="52sp"
+            android:textStyle="bold"
+            android:layout_marginTop="-12dp"
+            android:fontFamily="sans-serif-light" />
+
+        <View
+            android:layout_width="48dp"
+            android:layout_height="3dp"
+            android:background="#BB86FC"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="20dp" />
+
+        <TextView
+            android:layout_width="240dp"
+            android:layout_height="wrap_content"
+            android:text="Music visualizer powered by projectM"
+            android:textColor="#88FFFFFF"
+            android:textSize="16sp"
+            android:lineSpacingMultiplier="1.4" />
+
+    </LinearLayout>
+
+    <!-- Vertical divider -->
+    <View
+        android:id="@+id/divider"
+        android:layout_width="1dp"
+        android:layout_height="280dp"
+        android:background="#22FFFFFF"
+        android:layout_centerInParent="true"
+        android:layout_marginStart="360dp" />
+
+    <!-- Right action panel -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_centerVertical="true"
+        android:layout_toEndOf="@id/divider"
+        android:layout_marginStart="60dp">
+
+        <!-- Start Visualizer — primary action -->
+        <LinearLayout
+            android:id="@+id/btn_start_visualizer"
+            android:layout_width="380dp"
+            android:layout_height="88dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/menu_item_bg_primary"
+            android:paddingStart="28dp"
+            android:paddingEnd="28dp"
+            android:focusable="true"
+            android:clickable="true"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="▶  Start Visualizer"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- Browse Presets -->
+        <LinearLayout
+            android:id="@+id/btn_browse_presets"
+            android:layout_width="380dp"
+            android:layout_height="72dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/menu_item_bg"
+            android:paddingStart="28dp"
+            android:paddingEnd="28dp"
+            android:focusable="true"
+            android:clickable="true"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⊞  Browse Presets"
+                android:textColor="#DDDDDD"
+                android:textSize="20sp" />
+
+        </LinearLayout>
+
+        <!-- Settings -->
+        <LinearLayout
+            android:id="@+id/btn_settings"
+            android:layout_width="380dp"
+            android:layout_height="72dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/menu_item_bg"
+            android:paddingStart="28dp"
+            android:paddingEnd="28dp"
+            android:focusable="true"
+            android:clickable="true">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⚙  Settings"
+                android:textColor="#DDDDDD"
+                android:textSize="20sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Version / hint text bottom right -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/app_name"
-        android:textColor="#FFFFFF"
-        android:textSize="48sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="64dp" />
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="24dp"
+        android:text="D-pad to navigate  •  OK to select"
+        android:textColor="#44FFFFFF"
+        android:textSize="14sp" />
 
-    <Button
-        android:id="@+id/btn_start_visualizer"
-        android:layout_width="400dp"
-        android:layout_height="80dp"
-        android:text="@string/start_visualizer"
-        android:textSize="28sp"
-        android:focusable="true"
-        android:layout_marginBottom="24dp"
-        android:backgroundTint="#1E88E5" />
-
-    <Button
-        android:id="@+id/btn_browse_presets"
-        android:layout_width="400dp"
-        android:layout_height="80dp"
-        android:text="@string/browse_presets"
-        android:textSize="28sp"
-        android:focusable="true"
-        android:layout_marginBottom="24dp"
-        android:backgroundTint="#333333" />
-
-    <Button
-        android:id="@+id/btn_settings"
-        android:layout_width="400dp"
-        android:layout_height="80dp"
-        android:text="@string/settings"
-        android:textSize="28sp"
-        android:focusable="true"
-        android:backgroundTint="#333333" />
-
-    <Button
-        android:id="@+id/btn_crash_log"
-        android:layout_width="400dp"
-        android:layout_height="60dp"
-        android:text="View Crash Log"
-        android:textSize="20sp"
-        android:focusable="true"
-        android:layout_marginTop="32dp"
-        android:backgroundTint="#880000" />
-
-</LinearLayout>
+</RelativeLayout>
