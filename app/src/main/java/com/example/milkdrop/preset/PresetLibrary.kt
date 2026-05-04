@@ -89,10 +89,13 @@ class PresetLibrary private constructor(
         private fun loadBundledIndex(bundledPresetDir: File): List<Preset> {
             val cacheFile = File(bundledPresetDir.parentFile, INDEX_FILE)
             PresetIndexCache.read(cacheFile, INDEX_VERSION)?.let { cached ->
-                if (cached.isNotEmpty()) {
+                if (cached.size >= 9000) {
                     Log.i(TAG, "Loaded ${cached.size} bundled presets from index cache")
                     return cached
                 }
+                // Cache exists but has too few entries — stale/corrupt, rebuild it
+                Log.w(TAG, "Index cache has only ${cached.size} entries, rebuilding")
+                cacheFile.delete()
             }
 
             val scanned = scanDirectory(bundledPresetDir)

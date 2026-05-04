@@ -44,12 +44,14 @@ class PresetBrowserActivity : FragmentActivity() {
             // Group presets by their top-level category directory
             val grouped = LauncherActivity.presetLibrary.presets
                 .groupBy { preset ->
-                    // Extract category from path: .../presets/projectm-cream/Dancer/... → "Dancer"
-                    // or .../presets/projectm-cream/Dancer - subcategory/... → "Dancer"
+                    // Path: .../presets/projectm-cream/Dancer/SubCategory/file.milk
+                    // presetsIdx points to "presets", +2 = "projectm-cream", +3 = category
                     val parts = preset.filePath.split("/")
                     val presetsIdx = parts.indexOfLast { it == "presets" }
-                    if (presetsIdx >= 0 && presetsIdx + 2 < parts.size) {
-                        parts[presetsIdx + 2] // skip "presets/projectm-cream", take next dir
+                    if (presetsIdx >= 0 && presetsIdx + 3 < parts.size) {
+                        parts[presetsIdx + 3]
+                    } else if (presetsIdx >= 0 && presetsIdx + 2 < parts.size) {
+                        parts[presetsIdx + 2]
                     } else {
                         "Other"
                     }
