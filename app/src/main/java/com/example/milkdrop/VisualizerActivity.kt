@@ -49,7 +49,10 @@ class VisualizerActivity : FragmentActivity() {
 
     private val overlayHideHandler = Handler(Looper.getMainLooper())
     private val audioLevelHandler = Handler(Looper.getMainLooper())
+    private val fpsHandler = Handler(Looper.getMainLooper())
     private var overlayVisible = false
+    private var frameCount = 0
+    private var fpsLastTimeMs = 0L
     private val audioLevelRunnable = object : Runnable {
         override fun run() {
             updateAudioIndicator()
@@ -62,6 +65,7 @@ class VisualizerActivity : FragmentActivity() {
     private lateinit var presetNameText: TextView
     private lateinit var hintText: TextView
     private lateinit var audioIndicatorText: TextView
+    private lateinit var fpsText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -138,6 +142,23 @@ class VisualizerActivity : FragmentActivity() {
             FrameLayout.LayoutParams.WRAP_CONTENT
         ).also { it.gravity = android.view.Gravity.BOTTOM })
 
+        // FPS counter — top-right, always visible when enabled
+        fpsText = TextView(this).apply {
+            textSize = 14f
+            setTextColor(0xCCBB86FC.toInt())
+            setShadowLayer(4f, 1f, 1f, 0xFF000000.toInt())
+            visibility = View.GONE
+        }
+        val fpsPadding = (16 * resources.displayMetrics.density).toInt()
+        root.addView(fpsText, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
+        ).also {
+            it.gravity = android.view.Gravity.TOP or android.view.Gravity.END
+            it.topMargin = fpsPadding
+            it.marginEnd = fpsPadding
+        })
+
         setContentView(root)
         showOverlay()
     }
@@ -168,11 +189,24 @@ class VisualizerActivity : FragmentActivity() {
         }
         audioLevelHandler.removeCallbacksAndMessages(null)
         audioLevelHandler.post(audioLevelRunnable)
+
+        // FPS counter
+        fpsLastTimeMs = System.currentTimeMillis()
+        frameCount = 0
+        if (settings.showFps) {
+            fpsText.visibility = View.VISIBLE
+            renderer.setFrameCallback { runOnUiThread { onFrame() } }
+        } else {
+            fpsText.visibility = View.GONE
+            renderer.setFrameCallback(null)
+        }
     }
 
     override fun onPause() {
         super.onPause()
         audioLevelHandler.removeCallbacksAndMessages(null)
+        fpsHandler.removeCallbacksAndMessages(null)
+        renderer.setFrameCallback(null)
         audioIndicatorJob?.cancel()
         audioIndicatorJob = null
         audioCaptureManager.stop()
@@ -184,6 +218,7 @@ class VisualizerActivity : FragmentActivity() {
         super.onDestroy()
         overlayHideHandler.removeCallbacksAndMessages(null)
         audioLevelHandler.removeCallbacksAndMessages(null)
+        fpsHandler.removeCallbacksAndMessages(null)
         if (ownsInstances) {
             presetManager.release()
             renderer.release()
@@ -280,6 +315,18 @@ class VisualizerActivity : FragmentActivity() {
             AudioSourceType.MICROPHONE -> "🎤 Mic ${level}%"
             AudioSourceType.SYSTEM_AUDIO -> "🔇 System disabled"
             AudioSourceType.SILENT -> "🔇 Silent"
+        }
+    }
+
+    private fun onFrame() {
+        frameCount++
+        val now = System.currentTimeMillis()
+        val elapsed = now - fpsLastTimeMs
+        if (elapsed >= 1000L) {
+            val fps = frameCount * 1000f / elapsed
+            fpsText.text = "%.0f fps".format(fps)
+            frameCount = 0
+            fpsLastTimeMs = now
         }
     }
 

@@ -32,6 +32,7 @@ class ProjectMRenderer(
     @Volatile private var pendingSmooth: Boolean = true
     @Volatile private var transitionDuration: Float = 1f
     @Volatile private var beatDetector: BeatDetector? = null
+    @Volatile private var frameCallback: (() -> Unit)? = null
 
     // Current render resolution setting
     @Volatile var renderResolution: RenderResolution = RenderResolution.NATIVE
@@ -74,6 +75,7 @@ class ProjectMRenderer(
 
         bridge.renderFrame()
         beatDetector?.poll()
+        frameCallback?.invoke()
     }
 
     // -------------------------------------------------------------------------
@@ -94,6 +96,10 @@ class ProjectMRenderer(
 
     fun setBeatDetector(detector: BeatDetector) {
         beatDetector = detector
+    }
+
+    fun setFrameCallback(callback: (() -> Unit)?) {
+        frameCallback = callback
     }
 
     /**

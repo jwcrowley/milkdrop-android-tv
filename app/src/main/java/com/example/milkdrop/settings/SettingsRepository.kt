@@ -29,6 +29,7 @@ class SettingsRepository(context: Context) {
         private const val KEY_AUDIO_SOURCE_EXPLICIT = "audio_source_explicit"
         private const val KEY_RENDER_WIDTH = "render_width"
         private const val KEY_RENDER_HEIGHT = "render_height"
+        private const val KEY_SHOW_FPS = "show_fps"
     }
 
     private val prefs: SharedPreferences =
@@ -82,7 +83,8 @@ class SettingsRepository(context: Context) {
                 .coerceIn(0f, 1f),
             audioSource = migratedAudioSource,
             renderWidth = prefs.getInt(KEY_RENDER_WIDTH, defaults.renderWidth),
-            renderHeight = prefs.getInt(KEY_RENDER_HEIGHT, defaults.renderHeight)
+            renderHeight = prefs.getInt(KEY_RENDER_HEIGHT, defaults.renderHeight),
+            showFps = prefs.getBoolean(KEY_SHOW_FPS, defaults.showFps)
         )
     }
 
@@ -96,6 +98,7 @@ class SettingsRepository(context: Context) {
             putBoolean(KEY_AUDIO_SOURCE_EXPLICIT, audioSourceExplicit)
             putInt(KEY_RENDER_WIDTH, settings.renderWidth)
             putInt(KEY_RENDER_HEIGHT, settings.renderHeight)
+            putBoolean(KEY_SHOW_FPS, settings.showFps)
             apply()
         }
     }

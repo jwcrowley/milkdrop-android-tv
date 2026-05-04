@@ -33,5 +33,8 @@ data class AppSettings(
      * Render height in pixels. 0 = native display resolution.
      * Set to a specific value to override (e.g., 720 for 720p).
      */
-    val renderHeight: Int = 0
+    val renderHeight: Int = 0,
+
+    /** Whether to show the FPS counter overlay in the top-right corner. */
+    val showFps: Boolean = false
 )

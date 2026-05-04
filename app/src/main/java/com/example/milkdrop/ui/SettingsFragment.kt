@@ -33,7 +33,8 @@ class SettingsFragment : GuidedStepSupportFragment() {
         private const val ACTION_BEAT_DRIVEN       = 3L
         private const val ACTION_AUDIO_SOURCE      = 4L
         private const val ACTION_RESOLUTION        = 5L
-        private const val ACTION_CRASH_LOG         = 6L
+        private const val ACTION_SHOW_FPS          = 6L
+        private const val ACTION_CRASH_LOG         = 7L
         private const val ACTION_CONFIRM           = 100L
         private const val ACTION_CANCEL            = 101L
 
@@ -120,7 +121,16 @@ class SettingsFragment : GuidedStepSupportFragment() {
                 .build()
         )
 
-        // 6. Crash log (developer tool)
+        // 6. Show FPS (toggle)
+        actions.add(
+            GuidedAction.Builder(requireContext())
+                .id(ACTION_SHOW_FPS)
+                .title("FPS Counter")
+                .description(if (workingSettings.showFps) "On" else "Off")
+                .build()
+        )
+
+        // 7. Crash log (developer tool)
         actions.add(
             GuidedAction.Builder(requireContext())
                 .id(ACTION_CRASH_LOG)
@@ -169,6 +179,13 @@ class SettingsFragment : GuidedStepSupportFragment() {
                 workingSettings = workingSettings.copy(beatDrivenTransitions = toggled)
                 action.description = beatDrivenLabel(toggled)
                 notifyActionChanged(findActionPositionById(ACTION_BEAT_DRIVEN))
+            }
+
+            ACTION_SHOW_FPS -> {
+                val toggled = !workingSettings.showFps
+                workingSettings = workingSettings.copy(showFps = toggled)
+                action.description = if (toggled) "On" else "Off"
+                notifyActionChanged(findActionPositionById(ACTION_SHOW_FPS))
             }
 
             ACTION_CRASH_LOG -> {
