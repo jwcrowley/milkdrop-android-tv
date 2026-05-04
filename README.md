@@ -196,3 +196,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 projectM is licensed under the LGPL 2.1. See the [projectM repository](https://github.com/projectM-visualizer/projectm) for details.
 
 Preset files from the Cream of the Crop collection are licensed under their respective original licenses — see the [presets repository](https://github.com/projectM-visualizer/presets-cream-of-the-crop) for details.
+
+---
+
+🦵 it's a leg jam!
