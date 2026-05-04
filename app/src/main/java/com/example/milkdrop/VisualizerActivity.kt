@@ -238,7 +238,7 @@ class VisualizerActivity : FragmentActivity() {
 
     private fun startAudio(sourceType: AudioSourceType) {
         val safeSource = if (sourceType == AudioSourceType.SYSTEM_AUDIO) {
-            AudioSourceType.SILENT
+            AudioSourceType.AUTO_PULSE
         } else {
             sourceType
         }
@@ -248,6 +248,7 @@ class VisualizerActivity : FragmentActivity() {
     private fun updateAudioIndicator() {
         val level = (bridge.getBass() * 100f).toInt().coerceIn(0, 100)
         audioIndicatorText.text = when (activeAudioSource) {
+            AudioSourceType.AUTO_PULSE -> "⚡ Auto Pulse ${level}%"
             AudioSourceType.MICROPHONE -> "🎤 Mic ${level}%"
             AudioSourceType.SYSTEM_AUDIO -> "🔇 System disabled"
             AudioSourceType.SILENT -> "🔇 Silent"

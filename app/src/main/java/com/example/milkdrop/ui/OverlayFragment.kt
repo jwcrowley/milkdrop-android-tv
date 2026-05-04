@@ -80,6 +80,7 @@ class OverlayFragment : Fragment() {
 
     private fun formatAudioSource(sourceType: AudioSourceType): String {
         val sourceName = when (sourceType) {
+            AudioSourceType.AUTO_PULSE  -> getString(R.string.audio_source_auto_pulse)
             AudioSourceType.MICROPHONE   -> getString(R.string.audio_source_microphone)
             AudioSourceType.SYSTEM_AUDIO -> getString(R.string.audio_source_system)
             AudioSourceType.SILENT       -> getString(R.string.audio_source_silent)

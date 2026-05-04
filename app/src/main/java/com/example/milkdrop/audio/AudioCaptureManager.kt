@@ -39,6 +39,11 @@ class AudioCaptureManager(
         stop()  // Stop any existing source first
 
         val source = when {
+            sourceType == AudioSourceType.AUTO_PULSE -> {
+                Log.i(TAG, "Starting generated auto-pulse audio")
+                _activeSourceType.value = AudioSourceType.AUTO_PULSE
+                AutoPulseAudioSource()
+            }
             sourceType == AudioSourceType.MICROPHONE && hasRecordPermission() -> {
                 Log.i(TAG, "Starting microphone capture")
                 _activeSourceType.value = AudioSourceType.MICROPHONE

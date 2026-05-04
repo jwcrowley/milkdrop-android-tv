@@ -16,7 +16,7 @@ import com.example.milkdrop.settings.AppSettings
  *  1. Preset cycle interval (10–300 s, step 10)
  *  2. Transition duration (1–10 s, step 1)
  *  3. Beat-driven transitions (toggle on/off)
- *  4. Audio source (Microphone / Silent)
+ *  4. Audio source (Auto Pulse / Microphone / Silent)
  *  5. Display resolution (Native / 720p / 1080p)
  *
  * On confirm, persists changes via [SettingsRepository.update].
@@ -38,6 +38,7 @@ class SettingsFragment : GuidedStepSupportFragment() {
         private const val ACTION_CANCEL            = 101L
 
         // Sub-action IDs for audio source
+        private const val SUB_AUDIO_AUTO_PULSE     = 9L
         private const val SUB_AUDIO_MIC            = 10L
         private const val SUB_AUDIO_SILENT         = 12L
 
@@ -215,6 +216,11 @@ class SettingsFragment : GuidedStepSupportFragment() {
     override fun onSubGuidedActionClicked(action: GuidedAction): Boolean {
         when (action.id) {
             // Audio source sub-actions
+            SUB_AUDIO_AUTO_PULSE -> {
+                workingSettings = workingSettings.copy(audioSource = AudioSourceType.AUTO_PULSE)
+                updateActionDescription(ACTION_AUDIO_SOURCE, audioSourceLabel(AudioSourceType.AUTO_PULSE))
+                updateAudioSourceSubActions(AudioSourceType.AUTO_PULSE)
+            }
             SUB_AUDIO_MIC -> {
                 workingSettings = workingSettings.copy(audioSource = AudioSourceType.MICROPHONE)
                 updateActionDescription(ACTION_AUDIO_SOURCE, audioSourceLabel(AudioSourceType.MICROPHONE))
@@ -260,6 +266,7 @@ class SettingsFragment : GuidedStepSupportFragment() {
         if (enabled) getString(R.string.setting_on) else getString(R.string.setting_off)
 
     private fun audioSourceLabel(source: AudioSourceType): String = when (source) {
+        AudioSourceType.AUTO_PULSE  -> getString(R.string.audio_source_auto_pulse)
         AudioSourceType.MICROPHONE   -> getString(R.string.audio_source_microphone)
         AudioSourceType.SYSTEM_AUDIO -> getString(R.string.audio_source_system)
         AudioSourceType.SILENT       -> getString(R.string.audio_source_silent)
@@ -275,14 +282,23 @@ class SettingsFragment : GuidedStepSupportFragment() {
     private fun buildAudioSourceSubActions(current: AudioSourceType): List<GuidedAction> {
         return listOf(
             GuidedAction.Builder(requireContext())
+                .id(SUB_AUDIO_AUTO_PULSE)
+                .title(getString(R.string.audio_source_auto_pulse))
+                .description("Generated reactive signal, no privacy dot")
+                .checkSetId(GuidedAction.CHECKBOX_CHECK_SET_ID)
+                .checked(current == AudioSourceType.AUTO_PULSE)
+                .build(),
+            GuidedAction.Builder(requireContext())
                 .id(SUB_AUDIO_MIC)
                 .title(getString(R.string.audio_source_microphone))
+                .description("Uses a real mic if one exists; shows privacy dot")
                 .checkSetId(GuidedAction.CHECKBOX_CHECK_SET_ID)
                 .checked(current == AudioSourceType.MICROPHONE)
                 .build(),
             GuidedAction.Builder(requireContext())
                 .id(SUB_AUDIO_SILENT)
                 .title(getString(R.string.audio_source_silent))
+                .description("No audio input")
                 .checkSetId(GuidedAction.CHECKBOX_CHECK_SET_ID)
                 .checked(current == AudioSourceType.SILENT)
                 .build()

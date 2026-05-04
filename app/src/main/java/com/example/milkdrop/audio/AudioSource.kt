@@ -6,6 +6,7 @@ package com.example.milkdrop.audio
  * Implementations:
  * - [MicrophoneAudioSource] — captures from the device microphone via AudioRecord
  * - [SystemAudioSource] — captures system audio playback (API 29+)
+ * - [AutoPulseAudioSource] — generated beat-like PCM for mic-less TV hardware
  * - [SilentAudioSource] — emits zero-amplitude frames (fallback when permission denied)
  */
 interface AudioSource {
@@ -21,6 +22,7 @@ interface AudioSource {
 
 /** Identifies which audio source type is active. Used in Settings and UI. */
 enum class AudioSourceType {
+    AUTO_PULSE,
     MICROPHONE,
     SYSTEM_AUDIO,
     SILENT
