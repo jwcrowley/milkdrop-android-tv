@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.milkdrop"
         minSdk = 21
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.4.7"
+        versionCode = 5
+        versionName = "1.4.8"
 
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a")

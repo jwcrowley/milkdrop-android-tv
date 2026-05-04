@@ -4,10 +4,12 @@
 #include <fstream>
 #include <sstream>
 #include <cmath>
+#include <cstdlib>
 #include <atomic>
 #include <mutex>
 #include <unordered_map>
 #include <cstdint>
+#include <vector>
 
 #define LOG_TAG "MilkDropBridge"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
@@ -103,6 +105,25 @@ static void updateEnergyMetrics(const int16_t* samples, int frameCount, int chan
     g_trebleEnergy.store(0.7f * prevTreble + 0.3f * newTreble, std::memory_order_relaxed);
 }
 
+static std::vector<int16_t> amplifyPcm(const int16_t* samples, int totalSamples) {
+    static constexpr float kGain = 8.0f;
+    static constexpr int kNoiseGate = 96;
+
+    std::vector<int16_t> amplified(static_cast<size_t>(totalSamples));
+    for (int i = 0; i < totalSamples; ++i) {
+        int value = samples[i];
+        if (std::abs(value) < kNoiseGate) {
+            amplified[static_cast<size_t>(i)] = 0;
+            continue;
+        }
+        int boosted = static_cast<int>(static_cast<float>(value) * kGain);
+        if (boosted > 32767) boosted = 32767;
+        if (boosted < -32768) boosted = -32768;
+        amplified[static_cast<size_t>(i)] = static_cast<int16_t>(boosted);
+    }
+    return amplified;
+}
+
 // ─── JNI implementations ──────────────────────────────────────────────────────
 
 extern "C" JNIEXPORT jlong JNICALL
@@ -159,15 +180,18 @@ Java_com_example_milkdrop_ProjectMBridge_feedAudioNative(
 
     int ch = (channels == 2) ? 2 : 1;
     int frameCount = static_cast<int>(totalSamples) / ch;
+    std::vector<int16_t> amplified = amplifyPcm(
+        reinterpret_cast<const int16_t*>(buf),
+        static_cast<int>(totalSamples));
 
     projectm_pcm_add_int16(
         pm,
-        reinterpret_cast<const int16_t*>(buf),
+        amplified.data(),
         static_cast<uint32_t>(frameCount),
         ch == 2 ? PROJECTM_STEREO : PROJECTM_MONO);
 
     // Update bass/treble energy metrics from this PCM buffer
-    updateEnergyMetrics(reinterpret_cast<const int16_t*>(buf), frameCount, ch);
+    updateEnergyMetrics(amplified.data(), frameCount, ch);
 
     env->ReleaseShortArrayElements(pcmData, buf, JNI_ABORT);
 #else

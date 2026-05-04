@@ -63,10 +63,7 @@ class SettingsRepository(context: Context) {
             ?: defaults.audioSource.name
         val audioSource = runCatching { AudioSourceType.valueOf(storedAudioSource) }
             .getOrDefault(defaults.audioSource)
-        val migratedAudioSource = if (
-            audioSource == AudioSourceType.SYSTEM_AUDIO &&
-            !prefs.getBoolean(KEY_AUDIO_SOURCE_EXPLICIT, false)
-        ) {
+        val migratedAudioSource = if (audioSource == AudioSourceType.SYSTEM_AUDIO) {
             AudioSourceType.SILENT
         } else {
             audioSource

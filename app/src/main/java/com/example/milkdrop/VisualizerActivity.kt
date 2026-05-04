@@ -1,11 +1,6 @@
 package com.example.milkdrop
 
 import android.opengl.GLSurfaceView
-import android.app.Activity
-import android.content.Intent
-import android.media.projection.MediaProjection
-import android.media.projection.MediaProjectionManager
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -36,7 +31,7 @@ class VisualizerActivity : FragmentActivity() {
 
     companion object {
         private const val OVERLAY_HIDE_DELAY_MS = 3_000L
-        private const val REQUEST_MEDIA_PROJECTION = 2001
+        private const val AUDIO_LEVEL_REFRESH_MS = 250L
     }
 
     private lateinit var surfaceView: GLSurfaceView
@@ -49,13 +44,18 @@ class VisualizerActivity : FragmentActivity() {
     private lateinit var favoritesRepository: PresetFavoritesRepository
     private lateinit var settingsRepository: SettingsRepository
     private var ownsInstances = false
-    private var mediaProjectionManager: MediaProjectionManager? = null
-    private var mediaProjection: MediaProjection? = null
-    private var requestingSystemAudio = false
     private var audioIndicatorJob: Job? = null
+    private var activeAudioSource = AudioSourceType.SILENT
 
     private val overlayHideHandler = Handler(Looper.getMainLooper())
+    private val audioLevelHandler = Handler(Looper.getMainLooper())
     private var overlayVisible = false
+    private val audioLevelRunnable = object : Runnable {
+        override fun run() {
+            updateAudioIndicator()
+            audioLevelHandler.postDelayed(this, AUDIO_LEVEL_REFRESH_MS)
+        }
+    }
 
     // Simple overlay — just a TextView, no fragment transaction needed
     private lateinit var overlayView: View
@@ -111,9 +111,6 @@ class VisualizerActivity : FragmentActivity() {
                 settingsFlow = settingsRepository.settingsFlow
             )
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            mediaProjectionManager = getSystemService(MediaProjectionManager::class.java)
-        }
 
         // Build layout programmatically — no XML dependency that could fail
         val root = FrameLayout(this)
@@ -164,18 +161,17 @@ class VisualizerActivity : FragmentActivity() {
         audioIndicatorJob?.cancel()
         audioIndicatorJob = lifecycleScope.launch {
             audioCaptureManager.activeSourceFlow.collectLatest { source ->
-                val label = when (source) {
-                    AudioSourceType.MICROPHONE   -> "🎤 Mic"
-                    AudioSourceType.SYSTEM_AUDIO -> "🔊 System"
-                    AudioSourceType.SILENT       -> "🔇 Silent"
-                }
-                audioIndicatorText.text = label
+                activeAudioSource = source
+                updateAudioIndicator()
             }
         }
+        audioLevelHandler.removeCallbacksAndMessages(null)
+        audioLevelHandler.post(audioLevelRunnable)
     }
 
     override fun onPause() {
         super.onPause()
+        audioLevelHandler.removeCallbacksAndMessages(null)
         audioIndicatorJob?.cancel()
         audioIndicatorJob = null
         audioCaptureManager.stop()
@@ -186,12 +182,11 @@ class VisualizerActivity : FragmentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         overlayHideHandler.removeCallbacksAndMessages(null)
+        audioLevelHandler.removeCallbacksAndMessages(null)
         if (ownsInstances) {
             presetManager.release()
             renderer.release()
         }
-        mediaProjection?.stop()
-        mediaProjection = null
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
@@ -242,40 +237,20 @@ class VisualizerActivity : FragmentActivity() {
     }
 
     private fun startAudio(sourceType: AudioSourceType) {
-        if (sourceType == AudioSourceType.SYSTEM_AUDIO) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                audioCaptureManager.start(AudioSourceType.SILENT)
-                return
-            }
-            val projection = mediaProjection
-            if (projection != null) {
-                audioCaptureManager.startSystemAudio(projection)
-                return
-            }
-            if (!requestingSystemAudio) {
-                requestingSystemAudio = true
-                val intent = mediaProjectionManager?.createScreenCaptureIntent()
-                if (intent != null) {
-                    startActivityForResult(intent, REQUEST_MEDIA_PROJECTION)
-                } else {
-                    requestingSystemAudio = false
-                    audioCaptureManager.start(AudioSourceType.SILENT)
-                }
-            }
-            return
+        val safeSource = if (sourceType == AudioSourceType.SYSTEM_AUDIO) {
+            AudioSourceType.SILENT
+        } else {
+            sourceType
         }
-        audioCaptureManager.start(sourceType)
+        audioCaptureManager.start(safeSource)
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != REQUEST_MEDIA_PROJECTION) return
-        requestingSystemAudio = false
-        if (resultCode == Activity.RESULT_OK && data != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            mediaProjection = mediaProjectionManager?.getMediaProjection(resultCode, data)
-            mediaProjection?.let { audioCaptureManager.startSystemAudio(it) }
-        } else {
-            audioCaptureManager.start(AudioSourceType.SILENT)
+    private fun updateAudioIndicator() {
+        val level = (bridge.getBass() * 100f).toInt().coerceIn(0, 100)
+        audioIndicatorText.text = when (activeAudioSource) {
+            AudioSourceType.MICROPHONE -> "🎤 Mic ${level}%"
+            AudioSourceType.SYSTEM_AUDIO -> "🔇 System disabled"
+            AudioSourceType.SILENT -> "🔇 Silent"
         }
     }
 
