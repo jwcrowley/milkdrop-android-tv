@@ -21,7 +21,7 @@ data class AppSettings(
     val bassThreshold: Float = 0.8f,
 
     /** Which audio source to use for reactivity. */
-    val audioSource: AudioSourceType = AudioSourceType.SYSTEM_AUDIO,
+    val audioSource: AudioSourceType = AudioSourceType.SILENT,
 
     /**
      * Render width in pixels. 0 = native display resolution.

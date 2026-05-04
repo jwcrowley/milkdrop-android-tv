@@ -29,13 +29,15 @@ class PresetLibrary private constructor(
     companion object {
         private const val TAG = "PresetLibrary"
         private const val USER_PRESET_DIR = "MilkDrop/presets"
+        private const val INDEX_VERSION = "cream-9795-v1"
+        private const val INDEX_FILE = ".preset_index"
 
         fun build(
             bundledPresetDir: File,
             parser: PresetParser,           // kept for API compat, no longer used at index time
             includeUserPresets: Boolean = true
         ): PresetLibrary {
-            val bundled = scanDirectory(bundledPresetDir)
+            val bundled = loadBundledIndex(bundledPresetDir)
             Log.i(TAG, "Indexed ${bundled.size} bundled presets from ${bundledPresetDir.path}")
 
             val user = if (includeUserPresets) {
@@ -82,6 +84,22 @@ class PresetLibrary private constructor(
                 }
                 .sortedBy { it.name.lowercase() }
                 .toList()
+        }
+
+        private fun loadBundledIndex(bundledPresetDir: File): List<Preset> {
+            val cacheFile = File(bundledPresetDir.parentFile, INDEX_FILE)
+            PresetIndexCache.read(cacheFile, INDEX_VERSION)?.let { cached ->
+                if (cached.isNotEmpty()) {
+                    Log.i(TAG, "Loaded ${cached.size} bundled presets from index cache")
+                    return cached
+                }
+            }
+
+            val scanned = scanDirectory(bundledPresetDir)
+            if (scanned.isNotEmpty()) {
+                PresetIndexCache.write(cacheFile, INDEX_VERSION, scanned)
+            }
+            return scanned
         }
     }
 }

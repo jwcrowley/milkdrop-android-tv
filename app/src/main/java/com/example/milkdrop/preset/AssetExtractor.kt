@@ -24,6 +24,9 @@ class AssetExtractor(private val context: Context) {
         private const val TAG = "AssetExtractor"
         private const val PRESET_ASSET_DIR = "presets"
         private const val PRESET_VERSION_FILE = ".preset_version"
+        private const val PRESET_BUNDLE_VERSION = "cream-9795-v1"
+        private const val PRESET_COUNT_FILE = ".preset_count"
+        private const val MIN_EXPECTED_BUNDLED_PRESETS = 9_000
     }
 
     /** The directory where extracted presets are stored on the device filesystem. */
@@ -38,30 +41,42 @@ class AssetExtractor(private val context: Context) {
     suspend fun extractPresetsIfNeeded(): Int = withContext(Dispatchers.IO) {
         val presetDir = getPresetDirectory()
         val versionFile = File(context.filesDir, PRESET_VERSION_FILE)
-        val currentVersion = context.packageManager
-            .getPackageInfo(context.packageName, 0).versionCode
+        val countFile = File(context.filesDir, PRESET_COUNT_FILE)
 
-        // Check if extraction is needed
+        // Extraction is tied to the bundled preset corpus, not the app version.
+        // This prevents every app update from recopying thousands of unchanged files.
         if (versionFile.exists()) {
-            val storedVersion = versionFile.readText().trim().toIntOrNull()
-            if (storedVersion == currentVersion && presetDir.exists()) {
-                val count = countPresets(presetDir)
-                if (count > 0) {
-                    Log.i(TAG, "Presets already extracted (version $currentVersion, count=$count)")
+            val storedVersion = versionFile.readText().trim()
+            if (storedVersion == PRESET_BUNDLE_VERSION && presetDir.exists()) {
+                val count = countFile.readTextOrNull()?.trim()?.toIntOrNull()
+                    ?: countPresets(presetDir).also { countFile.writeText(it.toString()) }
+                if (count >= MIN_EXPECTED_BUNDLED_PRESETS) {
+                    Log.i(TAG, "Presets already extracted (bundle $PRESET_BUNDLE_VERSION, count=$count)")
                     return@withContext count
                 }
             }
         }
 
-        Log.i(TAG, "Extracting presets for version $currentVersion...")
+        // Upgrade path from older app-version stamps: if the extracted corpus is
+        // already present, adopt it without doing a full asset copy again.
+        if (presetDir.exists()) {
+            val existingCount = countFile.readTextOrNull()?.trim()?.toIntOrNull()
+                ?: countPresets(presetDir).also { countFile.writeText(it.toString()) }
+            if (existingCount >= MIN_EXPECTED_BUNDLED_PRESETS) {
+                versionFile.writeText(PRESET_BUNDLE_VERSION)
+                Log.i(TAG, "Adopted existing extracted presets (count=$existingCount)")
+                return@withContext existingCount
+            }
+        }
+
+        Log.i(TAG, "Extracting preset bundle $PRESET_BUNDLE_VERSION...")
         presetDir.mkdirs()
 
-        var extractedCount = 0
-        extractedCount = extractDirectory(PRESET_ASSET_DIR, presetDir)
+        val extractedCount = extractDirectory(PRESET_ASSET_DIR, presetDir)
 
-        // Write version stamp
         try {
-            versionFile.writeText(currentVersion.toString())
+            versionFile.writeText(PRESET_BUNDLE_VERSION)
+            countFile.writeText(extractedCount.toString())
         } catch (e: IOException) {
             Log.w(TAG, "Failed to write version stamp: ${e.message}")
         }
@@ -118,5 +133,11 @@ class AssetExtractor(private val context: Context) {
         return dir.walkTopDown()
             .filter { it.isFile && (it.name.endsWith(".milk", true) || it.name.endsWith(".milk2", true)) }
             .count()
+    }
+
+    private fun File.readTextOrNull(): String? = try {
+        if (exists()) readText() else null
+    } catch (_: IOException) {
+        null
     }
 }

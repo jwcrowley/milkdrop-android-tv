@@ -26,6 +26,7 @@ class SettingsRepository(context: Context) {
         private const val KEY_BEAT_DRIVEN = "beat_driven_transitions"
         private const val KEY_BASS_THRESHOLD = "bass_threshold"
         private const val KEY_AUDIO_SOURCE = "audio_source"
+        private const val KEY_AUDIO_SOURCE_EXPLICIT = "audio_source_explicit"
         private const val KEY_RENDER_WIDTH = "render_width"
         private const val KEY_RENDER_HEIGHT = "render_height"
     }
@@ -48,7 +49,7 @@ class SettingsRepository(context: Context) {
      * Persist [settings] to [SharedPreferences] and emit the new value on [settingsFlow].
      */
     fun update(settings: AppSettings) {
-        save(settings)
+        save(settings, audioSourceExplicit = true)
         _settingsFlow.value = settings
     }
 
@@ -58,6 +59,19 @@ class SettingsRepository(context: Context) {
 
     private fun load(): AppSettings {
         val defaults = AppSettings()
+        val storedAudioSource = prefs.getString(KEY_AUDIO_SOURCE, defaults.audioSource.name)
+            ?: defaults.audioSource.name
+        val audioSource = runCatching { AudioSourceType.valueOf(storedAudioSource) }
+            .getOrDefault(defaults.audioSource)
+        val migratedAudioSource = if (
+            audioSource == AudioSourceType.SYSTEM_AUDIO &&
+            !prefs.getBoolean(KEY_AUDIO_SOURCE_EXPLICIT, false)
+        ) {
+            AudioSourceType.SILENT
+        } else {
+            audioSource
+        }
+
         return AppSettings(
             cycleIntervalSeconds = prefs.getInt(KEY_CYCLE_INTERVAL, defaults.cycleIntervalSeconds)
                 .coerceIn(10, 300),
@@ -66,22 +80,20 @@ class SettingsRepository(context: Context) {
             beatDrivenTransitions = prefs.getBoolean(KEY_BEAT_DRIVEN, defaults.beatDrivenTransitions),
             bassThreshold = prefs.getFloat(KEY_BASS_THRESHOLD, defaults.bassThreshold)
                 .coerceIn(0f, 1f),
-            audioSource = AudioSourceType.valueOf(
-                prefs.getString(KEY_AUDIO_SOURCE, defaults.audioSource.name)
-                    ?: defaults.audioSource.name
-            ),
+            audioSource = migratedAudioSource,
             renderWidth = prefs.getInt(KEY_RENDER_WIDTH, defaults.renderWidth),
             renderHeight = prefs.getInt(KEY_RENDER_HEIGHT, defaults.renderHeight)
         )
     }
 
-    private fun save(settings: AppSettings) {
+    private fun save(settings: AppSettings, audioSourceExplicit: Boolean) {
         prefs.edit().apply {
             putInt(KEY_CYCLE_INTERVAL, settings.cycleIntervalSeconds)
             putFloat(KEY_TRANSITION_DURATION, settings.transitionDurationSeconds)
             putBoolean(KEY_BEAT_DRIVEN, settings.beatDrivenTransitions)
             putFloat(KEY_BASS_THRESHOLD, settings.bassThreshold)
             putString(KEY_AUDIO_SOURCE, settings.audioSource.name)
+            putBoolean(KEY_AUDIO_SOURCE_EXPLICIT, audioSourceExplicit)
             putInt(KEY_RENDER_WIDTH, settings.renderWidth)
             putInt(KEY_RENDER_HEIGHT, settings.renderHeight)
             apply()
