@@ -37,7 +37,21 @@ Dedicated to HB and TA.
 
 Grab the latest APK from the [Releases page](https://github.com/jwcrowley/milkdrop-android-tv/releases/latest).
 
-### Via ADB (recommended for developers)
+### Via LocalSend (recommended for most people)
+
+[LocalSend](https://localsend.org/) is a free, open-source local-network file transfer app for Windows, macOS, Linux, Android, and iOS. It does not require an account or cloud upload, and received files are saved to the device's Downloads folder by default.
+
+1. Install LocalSend on your phone or computer and on the Android TV / Fire TV device.
+2. Download the latest `milkdrop-tv-v*.apk` from the Releases page on your phone or computer.
+3. Make sure both devices are on the same Wi-Fi network.
+4. Open LocalSend on both devices.
+5. Send the APK to the TV device.
+6. On the TV, open the received APK from Downloads and allow installation from that app when Android prompts.
+7. Install MilkDrop TV.
+
+This avoids ADB pairing, IP-address issues, and typing long release URLs with a remote.
+
+### Via ADB (developers)
 
 1. Enable **ADB Debugging** on your device:
    - Fire TV: Settings → My Fire TV → Developer Options → ADB Debugging ON
