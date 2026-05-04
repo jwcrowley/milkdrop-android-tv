@@ -7,7 +7,7 @@ A sideloadable Android TV APK that brings the MilkDrop music visualizer experien
 ## Features
 
 - **Full MilkDrop preset support** — loads `.milk` (MilkDrop 2) and `.milk2` (MilkDrop3) preset files
-- **2000+ bundled presets** — curated from the projectM Cream of the Crop collection across 10 categories: Dancer, Drawing, Fractal, Geometric, Hypnotic, Particles, Reaction, Sparkle, Supernova, Waveform
+- **9,795 bundled presets** — the full projectM Cream of the Crop collection across 10 categories: Dancer, Drawing, Fractal, Geometric, Hypnotic, Particles, Reaction, Sparkle, Supernova, Waveform
 - **Real-time audio reactivity** — reacts to music via the device microphone; system audio capture available on Android 10+
 - **Beat-driven transitions** — optional bass-triggered preset changes
 - **Smooth preset cycling** — configurable interval (10–300s) with blend transitions
@@ -121,7 +121,7 @@ git submodule update --init --recursive
 
 ### Add More Presets (optional)
 
-The repo ships with 2000 curated presets. To add more, populate the directories under:
+The repo ships with all 9,795 presets from the Cream of the Crop collection. To add your own, populate the directories under:
 ```
 app/src/main/assets/presets/
 ```
@@ -169,7 +169,7 @@ Android UI (Kotlin)
 
 | Collection | Source | Count |
 |---|---|---|
-| projectM Cream of the Crop | [projectM-visualizer/presets-cream-of-the-crop](https://github.com/projectM-visualizer/presets-cream-of-the-crop) | 2000 |
+| projectM Cream of the Crop | [projectM-visualizer/presets-cream-of-the-crop](https://github.com/projectM-visualizer/presets-cream-of-the-crop) | 9,795 |
 | MilkDrop 2 Classic | [Geiss Works](https://www.geisswerks.com/milkdrop/) | bundled |
 | MilkDrop3 Community | [milkdrop2077/MilkDrop3](https://github.com/milkdrop2077/MilkDrop3) | bundled |
 
@@ -179,8 +179,9 @@ Android UI (Kotlin)
 
 | Version | Highlights |
 |---|---|
+| v1.4.0 | All 9,795 Cream of the Crop presets bundled |
 | v1.3.x | Cinematic TV home screen UI, proper app icon, crash log in Settings |
-| v1.2.0 | 2000 bundled presets from Cream of the Crop collection |
+| v1.2.0 | 2,000 bundled presets from Cream of the Crop collection |
 | v1.1.5 | First working build with real projectM rendering |
 | v1.0.9 | Fixed GLSurfaceView crash, visualizer runs without crashing |
 | v1.0.5 | Fixed black screen on main menu |
