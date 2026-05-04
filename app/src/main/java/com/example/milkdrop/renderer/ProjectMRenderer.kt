@@ -2,6 +2,7 @@ package com.example.milkdrop.renderer
 
 import android.opengl.GLSurfaceView
 import com.example.milkdrop.ProjectMBridge
+import com.example.milkdrop.audio.BeatDetector
 import com.example.milkdrop.audio.AudioFrameQueue
 import com.example.milkdrop.model.Preset
 import java.util.concurrent.atomic.AtomicBoolean
@@ -30,6 +31,7 @@ class ProjectMRenderer(
     @Volatile private var pendingPreset: Preset? = null
     @Volatile private var pendingSmooth: Boolean = true
     @Volatile private var transitionDuration: Float = 3f
+    @Volatile private var beatDetector: BeatDetector? = null
 
     // Current render resolution setting
     @Volatile var renderResolution: RenderResolution = RenderResolution.NATIVE
@@ -71,6 +73,7 @@ class ProjectMRenderer(
         }
 
         bridge.renderFrame()
+        beatDetector?.poll()
     }
 
     // -------------------------------------------------------------------------
@@ -87,6 +90,10 @@ class ProjectMRenderer(
     fun setTransitionDuration(seconds: Float) {
         transitionDuration = seconds
         bridge.setSoftCutDuration(seconds.toDouble())
+    }
+
+    fun setBeatDetector(detector: BeatDetector) {
+        beatDetector = detector
     }
 
     /**

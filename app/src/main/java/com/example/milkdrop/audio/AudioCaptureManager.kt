@@ -48,10 +48,11 @@ class AudioCaptureManager(
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
             hasRecordPermission() -> {
                 // SystemAudioSource requires a MediaProjection token obtained via
-                // the consent flow in the Activity. If not available, fall through to mic.
-                Log.i(TAG, "System audio requested but MediaProjection not yet available; using microphone")
-                _activeSourceType.value = AudioSourceType.MICROPHONE
-                MicrophoneAudioSource()
+                // the consent flow in the Activity. Do not silently fall back to
+                // microphone here because that turns on Android's mic indicator.
+                Log.i(TAG, "System audio requested without MediaProjection; using silent source")
+                _activeSourceType.value = AudioSourceType.SILENT
+                SilentAudioSource()
             }
             else -> {
                 if (!hasRecordPermission()) {
@@ -91,6 +92,7 @@ class AudioCaptureManager(
         activeSource?.stop()
         activeSource = null
         audioQueue.clear()
+        _activeSourceType.value = AudioSourceType.SILENT
     }
 
     private fun hasRecordPermission(): Boolean =

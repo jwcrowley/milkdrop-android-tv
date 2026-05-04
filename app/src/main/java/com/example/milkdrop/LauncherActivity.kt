@@ -14,6 +14,7 @@ import com.example.milkdrop.preset.AssetExtractor
 import com.example.milkdrop.preset.PresetLibrary
 import com.example.milkdrop.preset.PresetManager
 import com.example.milkdrop.preset.PresetParser
+import com.example.milkdrop.preset.PresetFavoritesRepository
 import com.example.milkdrop.renderer.ProjectMRenderer
 import com.example.milkdrop.settings.SettingsRepository
 import com.example.milkdrop.ui.MainFragment
@@ -43,6 +44,8 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
             private set
         lateinit var presetLibrary: PresetLibrary
             private set
+        lateinit var presetFavoritesRepository: PresetFavoritesRepository
+            private set
         lateinit var presetManager: PresetManager
             private set
         var isInitialized: Boolean = false
@@ -54,6 +57,7 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
                 bundledPresetDir = assetExtractor.getPresetDirectory(),
                 parser = presetParser
             )
+            presetFavoritesRepository.pruneToLibrary(presetLibrary)
             presetManager.rebuildLibrary(presetLibrary)
         }
     }
@@ -126,14 +130,18 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
             presetDirectory = assetExtractor.getPresetDirectory().absolutePath
         )
         beatDetector  = BeatDetector(bridge)
+        renderer.setBeatDetector(beatDetector)
+        presetFavoritesRepository = PresetFavoritesRepository(applicationContext)
         presetLibrary = PresetLibrary.build(
             bundledPresetDir = assetExtractor.getPresetDirectory(),
             parser = presetParser
         )
+        presetFavoritesRepository.pruneToLibrary(presetLibrary)
         presetManager = PresetManager(
             library      = presetLibrary,
             renderer     = renderer,
             beatDetector = beatDetector,
+            favoritesRepository = presetFavoritesRepository,
             settingsFlow = settingsRepository.settingsFlow
         )
         isInitialized = true

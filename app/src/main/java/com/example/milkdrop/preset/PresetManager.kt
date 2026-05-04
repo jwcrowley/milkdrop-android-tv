@@ -36,6 +36,7 @@ class PresetManager(
     private var library: PresetLibrary,
     private val renderer: ProjectMRenderer,
     private val beatDetector: BeatDetector,
+    private val favoritesRepository: PresetFavoritesRepository,
     private val settingsFlow: StateFlow<AppSettings>
 ) {
     companion object {
@@ -48,6 +49,7 @@ class PresetManager(
     // Shuffled index list — rebuilt when exhausted
     private val shuffledIndices = mutableListOf<Int>()
     private var shufflePosition = 0
+    private var favoritesOnlyMode = false
 
     // History deque: most recent preset at the front
     private val history = ArrayDeque<Preset>(MAX_HISTORY + 1)
@@ -122,7 +124,10 @@ class PresetManager(
         // Push current back to the front of the shuffle (so it's not lost)
         currentPreset?.let { current ->
             // Insert current at the beginning of the remaining shuffle
-            shuffledIndices.add(shufflePosition.coerceAtMost(shuffledIndices.size), library.presets.indexOf(current))
+            val currentIndex = library.presets.indexOf(current)
+            if (currentIndex >= 0) {
+                shuffledIndices.add(shufflePosition.coerceAtMost(shuffledIndices.size), currentIndex)
+            }
         }
 
         val previous = history.pollFirst()
@@ -145,6 +150,23 @@ class PresetManager(
     /** Returns the currently displayed preset, or null if none has been loaded yet. */
     fun getCurrentPreset(): Preset? = currentPreset
 
+    fun toggleFavorite(preset: Preset): Boolean {
+        val isFavorite = favoritesRepository.toggleFavorite(preset)
+        if (favoritesOnlyMode && !isFavorite && favoritePresets().isEmpty()) {
+            favoritesOnlyMode = false
+        }
+        rebuildShuffle()
+        return isFavorite
+    }
+
+    fun isFavoritesOnlyMode(): Boolean = favoritesOnlyMode
+
+    fun toggleFavoritesOnlyMode(): Boolean {
+        favoritesOnlyMode = !favoritesOnlyMode && favoritePresets().isNotEmpty()
+        rebuildShuffle()
+        return favoritesOnlyMode
+    }
+
     /**
      * Returns the history of recently displayed presets, most recent first.
      * Maximum [MAX_HISTORY] entries.
@@ -160,6 +182,7 @@ class PresetManager(
     /** Rebuild the shuffle from a new library (called after preset extraction completes). */
     fun rebuildLibrary(newLibrary: PresetLibrary) {
         library = newLibrary
+        favoritesRepository.pruneToLibrary(library)
         if (library.size() > 0) {
             rebuildShuffle()
         }
@@ -171,9 +194,27 @@ class PresetManager(
 
     private fun rebuildShuffle() {
         shuffledIndices.clear()
-        shuffledIndices.addAll((0 until library.size()).toMutableList().also { it.shuffle() })
+        shuffledIndices.addAll(eligiblePresetIndices().toMutableList().also { it.shuffle() })
         shufflePosition = 0
-        Log.d(TAG, "Rebuilt shuffle for ${library.size()} presets")
+        Log.d(TAG, "Rebuilt shuffle for ${shuffledIndices.size} presets")
+    }
+
+    private fun eligiblePresetIndices(): List<Int> {
+        if (!favoritesOnlyMode) return (0 until library.size()).toList()
+        val favoriteIds = favoritesRepository.getFavoriteIds()
+        val indices = library.presets.mapIndexedNotNull { index, preset ->
+            if (preset.id in favoriteIds) index else null
+        }
+        if (indices.isEmpty()) {
+            favoritesOnlyMode = false
+            return (0 until library.size()).toList()
+        }
+        return indices
+    }
+
+    private fun favoritePresets(): List<Preset> {
+        val favoriteIds = favoritesRepository.getFavoriteIds()
+        return library.presets.filter { it.id in favoriteIds }
     }
 
     private fun pushHistory(preset: Preset) {

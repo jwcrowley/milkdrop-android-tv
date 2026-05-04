@@ -40,6 +40,7 @@ class PresetBrowserActivity : FragmentActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
 
         if (LauncherActivity.isInitialized) {
+            val favoriteIds = LauncherActivity.presetFavoritesRepository.getFavoriteIds()
             // Group presets by their top-level category directory
             val grouped = LauncherActivity.presetLibrary.presets
                 .groupBy { preset ->
@@ -56,7 +57,14 @@ class PresetBrowserActivity : FragmentActivity() {
                 .entries
                 .sortedBy { it.key }
                 .map { it.key to it.value.sortedBy { p -> p.name.lowercase() } }
-            categories = grouped
+            val favorites = LauncherActivity.presetLibrary.presets
+                .filter { it.id in favoriteIds }
+                .sortedBy { it.name.lowercase() }
+            categories = if (favorites.isNotEmpty()) {
+                listOf("★ Favorites" to favorites) + grouped
+            } else {
+                grouped
+            }
         }
 
         showCategoryList()
@@ -77,7 +85,14 @@ class PresetBrowserActivity : FragmentActivity() {
         titleView.text = category
         countView.text = "${presets.size} presets"
 
-        recyclerView.adapter = PresetAdapter(presets) { preset ->
+        recyclerView.adapter = PresetAdapter(
+            presets = presets,
+            favoriteIds = if (LauncherActivity.isInitialized) {
+                LauncherActivity.presetFavoritesRepository.getFavoriteIds()
+            } else {
+                emptySet()
+            }
+        ) { preset ->
             LauncherActivity.presetManager.loadPreset(preset)
             val intent = Intent(this, VisualizerActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -130,6 +145,7 @@ class CategoryAdapter(
 
 class PresetAdapter(
     private val presets: List<Preset>,
+    private val favoriteIds: Set<String>,
     private val onClick: (Preset) -> Unit
 ) : RecyclerView.Adapter<PresetAdapter.VH>() {
 
@@ -146,7 +162,7 @@ class PresetAdapter(
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val preset = presets[position]
-        holder.name.text = preset.name
+        holder.name.text = if (preset.id in favoriteIds) "★ ${preset.name}" else preset.name
         holder.count.text = preset.format.name.lowercase()
         holder.itemView.setOnClickListener { onClick(preset) }
         holder.itemView.isFocusable = true
