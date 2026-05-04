@@ -12,7 +12,7 @@ data class AppSettings(
     val cycleIntervalSeconds: Int = 30,
 
     /** Duration of the blend transition between presets (seconds). Range: 1–10. */
-    val transitionDurationSeconds: Float = 3f,
+    val transitionDurationSeconds: Float = 1f,
 
     /** Whether to trigger preset changes on bass beats detected by [BeatDetector]. */
     val beatDrivenTransitions: Boolean = false,
