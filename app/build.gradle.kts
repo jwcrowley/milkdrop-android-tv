@@ -85,3 +85,46 @@ dependencies {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+val licenseAssetsDir = layout.buildDirectory.dir("generated/license-assets")
+
+android.sourceSets.getByName("main").assets.srcDir(licenseAssetsDir)
+
+tasks.register("copyLicenseAssets") {
+    val projectMDir = layout.projectDirectory.dir("src/main/cpp/projectm")
+    val outputDir = licenseAssetsDir
+    inputs.dir(projectMDir)
+    outputs.dir(outputDir)
+    doLast {
+        val destination = outputDir.get().asFile
+        destination.mkdirs()
+        projectMDir.file("LICENSE.txt").asFile.copyTo(
+            destination.resolve("projectM-LGPL-2.1.txt"),
+            overwrite = true
+        )
+        projectMDir.file("vendor/projectm-eval/LICENSE.md").asFile.copyTo(
+            destination.resolve("projectm-eval-MIT.txt"),
+            overwrite = true
+        )
+        projectMDir.file("vendor/hlslparser/LICENSE").asFile.copyTo(
+            destination.resolve("hlslparser-MIT.txt"),
+            overwrite = true
+        )
+        val revisionCommand = ProcessBuilder(
+            "git", "-C", projectMDir.asFile.absolutePath, "rev-parse", "HEAD"
+        ).start()
+        val revision = revisionCommand.inputStream.bufferedReader().readText().trim()
+        val revisionResult = revisionCommand.waitFor()
+        if (revisionResult != 0 || revision.isEmpty()) {
+            throw GradleException("Cannot read the projectM source revision")
+        }
+        destination.resolve("projectM-source.txt").writeText(
+            "projectM $revision\n" +
+                "https://github.com/projectM-visualizer/projectm/tree/$revision\n"
+        )
+    }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("copyLicenseAssets")
+}
