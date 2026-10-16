@@ -108,6 +108,22 @@ jobs:
           path: app/build/outputs/apk/release/${{ env.APK_NAME }}
           retention-days: 30
 
+      - name: Write projectM license files
+        run: |
+          mkdir -p app/build/compliance
+          cp app/src/main/cpp/projectm/LICENSE.txt \
+            app/build/compliance/projectM-LGPL-2.1.txt
+          cp app/src/main/cpp/projectm/vendor/projectm-eval/LICENSE.md \
+            app/build/compliance/projectm-eval-MIT.txt
+          cp app/src/main/cpp/projectm/vendor/hlslparser/LICENSE \
+            app/build/compliance/hlslparser-MIT.txt
+          cp NOTICE.md app/build/compliance/NOTICE.md
+          revision="$(git -C app/src/main/cpp/projectm rev-parse HEAD)"
+          printf '%s\n' \
+            "projectM ${revision}" \
+            "https://github.com/projectM-visualizer/projectm/tree/${revision}" \
+            > app/build/compliance/projectM-source.txt
+
       # ── Create GitHub Release (only on version tags) ─────────────────────────
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -129,7 +145,9 @@ jobs:
             ### Requirements
             - Android 5.0+ (API 21)
             - Fire TV Stick 2nd gen or later, ONN Android TV box, or any Android TV device
-          files: app/build/outputs/apk/release/${{ env.APK_NAME }}
+          files: |
+            app/build/outputs/apk/release/${{ env.APK_NAME }}
+            app/build/compliance/*
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}  # e.g. v1.0-beta is a prerelease
         env:

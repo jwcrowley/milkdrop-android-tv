@@ -244,7 +244,7 @@ Android UI (Kotlin)
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 See [PRIVACY.md](PRIVACY.md) for local audio and crash-log handling.
 
-projectM is licensed under the LGPL 2.1. See the [projectM repository](https://github.com/projectM-visualizer/projectm) for details.
+projectM is licensed under the LGPL 2.1. The APK ships it as a separate `libprojectM-4.so`. See [NOTICE.md](NOTICE.md) for the source revision and the library replacement steps.
 
 Preset files from the Cream of the Crop collection are licensed under their respective original licenses — see the [presets repository](https://github.com/projectM-visualizer/presets-cream-of-the-crop) for details.
 
