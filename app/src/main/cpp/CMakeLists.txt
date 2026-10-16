@@ -4,7 +4,9 @@ project(milkdrop_bridge)
 # ─── projectM configuration ───────────────────────────────────────────────────
 set(ENABLE_SDL_UI          OFF CACHE BOOL "" FORCE)
 set(ENABLE_TESTING         OFF CACHE BOOL "" FORCE)
-set(BUILD_SHARED_LIBS      OFF CACHE BOOL "" FORCE)
+# LGPL 2.1 requires a recipient to replace this library. Keep projectM in its own
+# shared object instead of copying its objects into libmilkdrop_bridge.so.
+set(BUILD_SHARED_LIBS      ON CACHE BOOL "" FORCE)
 set(PROJECTM_BUILD_TESTS   OFF CACHE BOOL "" FORCE)
 set(ENABLE_GLES            ON  CACHE BOOL "" FORCE)
 set(ENABLE_OPENMP          OFF CACHE BOOL "" FORCE)
