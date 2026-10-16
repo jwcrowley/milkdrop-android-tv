@@ -18,23 +18,13 @@ git submodule update --init --recursive
 ```
 
 This populates `app/src/main/cpp/projectm/` with the projectM source tree.
-If the submodule was already initialized but is out of date, run:
 
-```bash
-git submodule update --recursive --remote
-```
+## Bundled Presets
 
-## Add Real Preset Files
+The repository includes 9,795 `.milk` presets in
+`app/src/main/assets/presets/projectm-cream/`.
 
-The `app/src/main/assets/presets/` directory ships with placeholder
-subdirectories. To use real MilkDrop presets, follow the instructions in:
-
-```
-app/src/main/assets/presets/README.md
-```
-
-That file explains which preset packs are compatible and where to place the
-`.milk` / `.milk2` files so the app can discover them at runtime.
+Read `app/src/main/assets/presets/README.md` for the source and directory layout.
 
 ## Build a Debug APK
 

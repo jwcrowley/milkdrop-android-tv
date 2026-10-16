@@ -1,6 +1,5 @@
 package com.example.milkdrop.preset
 
-import android.os.Environment
 import android.util.Log
 import com.example.milkdrop.model.Preset
 import com.example.milkdrop.model.PresetFormat
@@ -28,25 +27,27 @@ class PresetLibrary private constructor(
 
     companion object {
         private const val TAG = "PresetLibrary"
-        private const val USER_PRESET_DIR = "MilkDrop/presets"
         private const val INDEX_VERSION = "cream-9795-v1"
         private const val INDEX_FILE = ".preset_index"
+        private const val EXPECTED_BUNDLED_PRESETS = 9_795
 
         fun build(
             bundledPresetDir: File,
-            parser: PresetParser,           // kept for API compat, no longer used at index time
-            includeUserPresets: Boolean = true
+            includeUserPresets: Boolean = true,
+            appUserPresetDir: File? = null
         ): PresetLibrary {
             val bundled = loadBundledIndex(bundledPresetDir)
             Log.i(TAG, "Indexed ${bundled.size} bundled presets from ${bundledPresetDir.path}")
 
             val user = if (includeUserPresets) {
-                val userDir = File(Environment.getExternalStorageDirectory(), USER_PRESET_DIR)
-                if (userDir.exists() && userDir.isDirectory) {
+                appUserPresetDir?.let { userDir ->
                     val userPresets = scanDirectory(userDir)
-                    Log.i(TAG, "Indexed ${userPresets.size} user presets from ${userDir.path}")
+                    Log.i(
+                        TAG,
+                        "Indexed ${userPresets.size} user presets from ${userDir.path}"
+                    )
                     userPresets
-                } else emptyList()
+                }.orEmpty()
             } else emptyList()
 
             return PresetLibrary(
@@ -89,7 +90,7 @@ class PresetLibrary private constructor(
         private fun loadBundledIndex(bundledPresetDir: File): List<Preset> {
             val cacheFile = File(bundledPresetDir.parentFile, INDEX_FILE)
             PresetIndexCache.read(cacheFile, INDEX_VERSION)?.let { cached ->
-                if (cached.size >= 9000) {
+                if (cached.size == EXPECTED_BUNDLED_PRESETS) {
                     Log.i(TAG, "Loaded ${cached.size} bundled presets from index cache")
                     return cached
                 }

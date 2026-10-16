@@ -69,14 +69,20 @@ jobs:
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/milkdrop-release.jks
 
       # ── Build signed release APK ─────────────────────────────────────────────
-      - name: Build release APK
+      - name: Test, lint, and build release APK
         env:
           KEYSTORE_PATH: milkdrop-release.jks
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
         run: |
-          ./gradlew assembleRelease \
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            EXPECTED_VERSION="${GITHUB_REF_NAME#v}"
+            ACTUAL_VERSION="$(python3 -c \
+              'import pathlib,re; text=pathlib.Path("app/build.gradle.kts").read_text(); print(re.search(r"versionName = \"([^\"]+)\"", text).group(1))')"
+            test "$ACTUAL_VERSION" = "$EXPECTED_VERSION"
+          fi
+          ./gradlew test lintDebug assembleRelease \
             -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/app/$KEYSTORE_PATH" \
             -Pandroid.injected.signing.store.password="$STORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \

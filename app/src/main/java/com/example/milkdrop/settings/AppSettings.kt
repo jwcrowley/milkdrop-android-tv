@@ -21,19 +21,19 @@ data class AppSettings(
     val bassThreshold: Float = 0.8f,
 
     /** Which audio source to use for reactivity. */
-    val audioSource: AudioSourceType = AudioSourceType.AUTO_PULSE,
+    val audioSource: AudioSourceType = AudioSourceType.SYSTEM_AUDIO,
 
     /**
      * Render width in pixels. 0 = native display resolution.
      * Set to a specific value to override (e.g., 1280 for 720p).
      */
-    val renderWidth: Int = 0,
+    val renderWidth: Int = 1280,
 
     /**
      * Render height in pixels. 0 = native display resolution.
      * Set to a specific value to override (e.g., 720 for 720p).
      */
-    val renderHeight: Int = 0,
+    val renderHeight: Int = 720,
 
     /** Whether to show the FPS counter overlay in the top-right corner. */
     val showFps: Boolean = false

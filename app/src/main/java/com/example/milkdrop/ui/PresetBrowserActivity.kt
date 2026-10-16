@@ -14,13 +14,27 @@ import com.example.milkdrop.R
 import com.example.milkdrop.VisualizerActivity
 import com.example.milkdrop.model.Preset
 
+internal fun categoryForPreset(preset: Preset): String {
+    val parts = preset.filePath.split("/")
+    val presetsIdx = parts.indexOfLast { it == "presets" }
+    return if (
+        presetsIdx >= 0 &&
+        parts.getOrNull(presetsIdx + 1) == "projectm-cream"
+    ) {
+        parts.getOrNull(presetsIdx + 2) ?: "Other"
+    } else if (presetsIdx >= 0) {
+        "User Presets"
+    } else {
+        "Other"
+    }
+}
+
 /**
  * Two-level preset browser: Category list → Preset list within category.
  * Built with plain RecyclerView — no Leanback grid (which can't handle 9,795 items).
  * Fully D-pad navigable.
  */
 class PresetBrowserActivity : FragmentActivity() {
-
     private lateinit var recyclerView: RecyclerView
     private lateinit var titleView: TextView
     private lateinit var countView: TextView
@@ -31,6 +45,11 @@ class PresetBrowserActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!LauncherActivity.isInitialized) {
+            startActivity(Intent(this, LauncherActivity::class.java))
+            finish()
+            return
+        }
         setContentView(R.layout.activity_preset_browser)
 
         recyclerView = findViewById(R.id.preset_browser_list)
@@ -43,19 +62,7 @@ class PresetBrowserActivity : FragmentActivity() {
             val favoriteIds = LauncherActivity.presetFavoritesRepository.getFavoriteIds()
             // Group presets by their top-level category directory
             val grouped = LauncherActivity.presetLibrary.presets
-                .groupBy { preset ->
-                    // Path: .../presets/projectm-cream/Dancer/SubCategory/file.milk
-                    // presetsIdx points to "presets", +2 = "projectm-cream", +3 = category
-                    val parts = preset.filePath.split("/")
-                    val presetsIdx = parts.indexOfLast { it == "presets" }
-                    if (presetsIdx >= 0 && presetsIdx + 3 < parts.size) {
-                        parts[presetsIdx + 3]
-                    } else if (presetsIdx >= 0 && presetsIdx + 2 < parts.size) {
-                        parts[presetsIdx + 2]
-                    } else {
-                        "Other"
-                    }
-                }
+                .groupBy(::categoryForPreset)
                 .entries
                 .sortedBy { it.key.trimStart { c -> !c.isLetter() }.lowercase() }
                 .map { it.key to it.value.sortedBy { p -> p.name.trimStart { c -> !c.isLetter() }.lowercase() } }

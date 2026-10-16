@@ -133,7 +133,7 @@ class PresetManager(
             }
         }
 
-        val previous = history.pollFirst()
+        val previous = history.pollFirst() ?: return
         currentPreset = previous
         renderer.loadPreset(previous, smooth = true)
         Log.d(TAG, "Previous preset: ${previous.name}")

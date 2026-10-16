@@ -10,6 +10,7 @@ set(ENABLE_GLES            ON  CACHE BOOL "" FORCE)
 set(ENABLE_OPENMP          OFF CACHE BOOL "" FORCE)
 set(ENABLE_LLVM            OFF CACHE BOOL "" FORCE)
 set(ENABLE_PLAYLIST        OFF CACHE BOOL "" FORCE)
+option(ALLOW_PROJECTM_STUB "Build without projectM for bridge-only development" OFF)
 
 set(PROJECTM_AVAILABLE FALSE)
 
@@ -18,7 +19,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/projectm/CMakeLists.txt")
     set(PROJECTM_AVAILABLE TRUE)
     message(STATUS "projectM submodule found — building with real projectM")
 else()
-    message(WARNING "projectM submodule not found — building stub")
+    if(ALLOW_PROJECTM_STUB)
+        message(WARNING "projectM submodule not found — building explicit stub")
+    else()
+        message(FATAL_ERROR
+            "projectM submodule not found. Run: git submodule update --init --recursive")
+    endif()
 endif()
 
 # ─── JNI bridge ───────────────────────────────────────────────────────────────

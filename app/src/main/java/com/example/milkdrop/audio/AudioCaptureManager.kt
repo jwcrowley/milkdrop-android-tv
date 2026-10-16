@@ -70,6 +70,14 @@ class AudioCaptureManager(
 
         activeSource = source
         source.start { frame -> audioQueue.offer(frame) }
+        if (source is MicrophoneAudioSource && !source.isRunning()) {
+            Log.w(TAG, "Microphone is unavailable — using auto-pulse audio")
+            source.stop()
+            val fallback = AutoPulseAudioSource()
+            activeSource = fallback
+            _activeSourceType.value = AudioSourceType.AUTO_PULSE
+            fallback.start { frame -> audioQueue.offer(frame) }
+        }
     }
 
     /**
@@ -81,11 +89,12 @@ class AudioCaptureManager(
             Log.w(TAG, "System audio capture requires API 29+")
             return
         }
+        if (activeSource is SystemAudioSource) return
         stop()
         val source = SystemAudioSource(mediaProjection) {
-            // Fallback: MediaProjection was revoked — switch to microphone
-            Log.w(TAG, "MediaProjection revoked — switching to microphone")
-            start(AudioSourceType.MICROPHONE)
+            Log.w(TAG, "MediaProjection revoked — switching to auto-pulse audio")
+            PlaybackCaptureService.stop(context)
+            start(AudioSourceType.AUTO_PULSE)
         }
         activeSource = source
         _activeSourceType.value = AudioSourceType.SYSTEM_AUDIO

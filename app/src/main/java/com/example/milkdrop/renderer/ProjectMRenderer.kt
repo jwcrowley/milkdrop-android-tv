@@ -30,7 +30,10 @@ class ProjectMRenderer(
     // Pending preset load — set from any thread, consumed on Render Thread
     @Volatile private var pendingPreset: Preset? = null
     @Volatile private var pendingSmooth: Boolean = true
+    @Volatile private var activePreset: Preset? = null
     @Volatile private var transitionDuration: Float = 1f
+    @Volatile private var appliedTransitionDuration: Float = Float.NaN
+    private val resolutionChangePending = AtomicBoolean(false)
     @Volatile private var beatDetector: BeatDetector? = null
     @Volatile private var frameCallback: (() -> Unit)? = null
 
@@ -43,9 +46,15 @@ class ProjectMRenderer(
     // -------------------------------------------------------------------------
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+        // A GLSurfaceView can recreate its EGL context after a pause. Dispose the
+        // previous projectM instance before replacing its handle.
+        bridge.destroy()
         val (w, h) = resolveResolution()
         bridge.create(w.coerceAtLeast(1), h.coerceAtLeast(1), presetDirectory)
         bridge.setSoftCutDuration(transitionDuration.toDouble())
+        activePreset?.let { bridge.loadPreset(it.filePath, false) }
+        appliedTransitionDuration = transitionDuration
+        resolutionChangePending.set(false)
         contextLost.set(false)
     }
 
@@ -60,10 +69,21 @@ class ProjectMRenderer(
     }
 
     override fun onDrawFrame(gl: GL10?) {
+        if (resolutionChangePending.getAndSet(false)) {
+            val (w, h) = resolveResolution()
+            bridge.reinitialize(w, h)
+        }
+
+        val requestedTransitionDuration = transitionDuration
+        if (requestedTransitionDuration != appliedTransitionDuration) {
+            bridge.setSoftCutDuration(requestedTransitionDuration.toDouble())
+            appliedTransitionDuration = requestedTransitionDuration
+        }
+
         // Consume the latest audio frame (non-blocking)
         val frame = audioQueue.poll()
         if (frame != null) {
-            bridge.feedAudio(frame.pcmData, frame.channelCount)
+            bridge.feedAudio(frame.pcmData, frame.channelCount, frame.sampleRate)
         }
 
         // Apply any pending preset load
@@ -71,6 +91,7 @@ class ProjectMRenderer(
         if (preset != null) {
             pendingPreset = null
             bridge.loadPreset(preset.filePath, pendingSmooth)
+            activePreset = preset
         }
 
         bridge.renderFrame()
@@ -91,7 +112,6 @@ class ProjectMRenderer(
     /** Update the blend transition duration. Thread-safe. */
     fun setTransitionDuration(seconds: Float) {
         transitionDuration = seconds
-        bridge.setSoftCutDuration(seconds.toDouble())
     }
 
     fun setBeatDetector(detector: BeatDetector) {
@@ -109,10 +129,7 @@ class ProjectMRenderer(
      */
     fun setRenderResolution(resolution: RenderResolution) {
         renderResolution = resolution
-        if (surfaceWidth > 0 && surfaceHeight > 0) {
-            val (w, h) = resolveResolution()
-            bridge.reinitialize(w, h)
-        }
+        resolutionChangePending.set(true)
     }
 
     /** Called when the EGL surface is destroyed (app backgrounded). */

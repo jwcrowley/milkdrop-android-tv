@@ -26,7 +26,7 @@ class AssetExtractor(private val context: Context) {
         private const val PRESET_VERSION_FILE = ".preset_version"
         private const val PRESET_BUNDLE_VERSION = "cream-9795-v1"
         private const val PRESET_COUNT_FILE = ".preset_count"
-        private const val MIN_EXPECTED_BUNDLED_PRESETS = 9_000
+        private const val EXPECTED_BUNDLED_PRESETS = 9_795
     }
 
     /** The directory where extracted presets are stored on the device filesystem. */
@@ -50,7 +50,7 @@ class AssetExtractor(private val context: Context) {
             if (storedVersion == PRESET_BUNDLE_VERSION && presetDir.exists()) {
                 val count = countFile.readTextOrNull()?.trim()?.toIntOrNull()
                     ?: countPresets(presetDir).also { countFile.writeText(it.toString()) }
-                if (count >= MIN_EXPECTED_BUNDLED_PRESETS) {
+                if (count == EXPECTED_BUNDLED_PRESETS) {
                     Log.i(TAG, "Presets already extracted (bundle $PRESET_BUNDLE_VERSION, count=$count)")
                     return@withContext count
                 }
@@ -62,7 +62,7 @@ class AssetExtractor(private val context: Context) {
         if (presetDir.exists()) {
             val existingCount = countFile.readTextOrNull()?.trim()?.toIntOrNull()
                 ?: countPresets(presetDir).also { countFile.writeText(it.toString()) }
-            if (existingCount >= MIN_EXPECTED_BUNDLED_PRESETS) {
+            if (existingCount == EXPECTED_BUNDLED_PRESETS) {
                 versionFile.writeText(PRESET_BUNDLE_VERSION)
                 Log.i(TAG, "Adopted existing extracted presets (count=$existingCount)")
                 return@withContext existingCount

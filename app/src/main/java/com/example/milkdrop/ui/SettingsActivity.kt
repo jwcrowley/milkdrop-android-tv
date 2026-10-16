@@ -1,8 +1,10 @@
 package com.example.milkdrop.ui
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.fragment.app.FragmentActivity
 import androidx.leanback.app.GuidedStepSupportFragment
+import com.example.milkdrop.LauncherActivity
 import com.example.milkdrop.R
 
 /**
@@ -15,6 +17,11 @@ class SettingsActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!LauncherActivity.isInitialized) {
+            startActivity(Intent(this, LauncherActivity::class.java))
+            finish()
+            return
+        }
 
         if (savedInstanceState == null) {
             GuidedStepSupportFragment.addAsRoot(this, SettingsFragment(), android.R.id.content)

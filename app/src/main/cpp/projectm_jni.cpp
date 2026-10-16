@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <android/log.h>
+#include <algorithm>
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -69,34 +70,44 @@ static void removeHandle(jlong key) {
 
 static std::atomic<float> g_bassEnergy{0.0f};
 static std::atomic<float> g_trebleEnergy{0.0f};
+static float g_bassLowPass = 0.0f;
+static float g_trebleLowPass = 0.0f;
 
-// Compute RMS of a slice of int16 samples (interleaved, any channel count).
-// startSample and endSample are frame indices (not byte offsets).
-static float computeRms(const int16_t* samples, int startSample, int endSample, int channels) {
-    if (endSample <= startSample) return 0.0f;
-    double sumSq = 0.0;
-    int count = 0;
-    for (int i = startSample; i < endSample; ++i) {
-        for (int c = 0; c < channels; ++c) {
-            float s = static_cast<float>(samples[i * channels + c]) / 32768.0f;
-            sumSq += static_cast<double>(s * s);
-            ++count;
+static void updateEnergyMetrics(
+        const int16_t* samples,
+        int frameCount,
+        int channels,
+        int sampleRate) {
+    if (frameCount <= 0 || sampleRate <= 0) return;
+
+    constexpr float kPi = 3.14159265358979323846f;
+    const float bassAlpha =
+        1.0f - std::exp(-2.0f * kPi * 180.0f / static_cast<float>(sampleRate));
+    const float trebleAlpha =
+        1.0f - std::exp(-2.0f * kPi * 2500.0f / static_cast<float>(sampleRate));
+    double bassSumSq = 0.0;
+    double trebleSumSq = 0.0;
+
+    for (int frame = 0; frame < frameCount; ++frame) {
+        float mono = 0.0f;
+        for (int channel = 0; channel < channels; ++channel) {
+            mono += static_cast<float>(samples[frame * channels + channel]) / 32768.0f;
         }
+        mono /= static_cast<float>(channels);
+
+        g_bassLowPass += bassAlpha * (mono - g_bassLowPass);
+        g_trebleLowPass += trebleAlpha * (mono - g_trebleLowPass);
+        const float treble = mono - g_trebleLowPass;
+        bassSumSq += static_cast<double>(g_bassLowPass * g_bassLowPass);
+        trebleSumSq += static_cast<double>(treble * treble);
     }
-    if (count == 0) return 0.0f;
-    return static_cast<float>(std::sqrt(sumSq / count));
-}
 
-static void updateEnergyMetrics(const int16_t* samples, int frameCount, int channels) {
-    if (frameCount <= 0) return;
-
-    // Bass: first quarter of frames (low-frequency content dominates early in time)
-    int bassEnd   = frameCount / 4;
-    // Treble: last quarter of frames
-    int trebleStart = frameCount - frameCount / 4;
-
-    float newBass   = computeRms(samples, 0,           bassEnd,    channels);
-    float newTreble = computeRms(samples, trebleStart, frameCount, channels);
+    const float newBass = std::min(
+        1.0f,
+        3.0f * static_cast<float>(std::sqrt(bassSumSq / frameCount)));
+    const float newTreble = std::min(
+        1.0f,
+        2.0f * static_cast<float>(std::sqrt(trebleSumSq / frameCount)));
 
     // Exponential moving average: energy = 0.7 * energy + 0.3 * newRms
     float prevBass   = g_bassEnergy.load(std::memory_order_relaxed);
@@ -167,7 +178,12 @@ Java_com_example_milkdrop_ProjectMBridge_renderFrameNative(
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_example_milkdrop_ProjectMBridge_feedAudioNative(
-        JNIEnv* env, jobject, jlong handle, jshortArray pcmData, jint channels) {
+        JNIEnv* env,
+        jobject,
+        jlong handle,
+        jshortArray pcmData,
+        jint channels,
+        jint sampleRate) {
 #if PROJECTM_AVAILABLE
     projectm_handle pm = lookupHandle(handle);
     if (!pm) return;
@@ -191,11 +207,11 @@ Java_com_example_milkdrop_ProjectMBridge_feedAudioNative(
         ch == 2 ? PROJECTM_STEREO : PROJECTM_MONO);
 
     // Update bass/treble energy metrics from this PCM buffer
-    updateEnergyMetrics(amplified.data(), frameCount, ch);
+    updateEnergyMetrics(amplified.data(), frameCount, ch, static_cast<int>(sampleRate));
 
     env->ReleaseShortArrayElements(pcmData, buf, JNI_ABORT);
 #else
-    (void)env; (void)handle; (void)pcmData; (void)channels;
+    (void)env; (void)handle; (void)pcmData; (void)channels; (void)sampleRate;
 #endif
 }
 
