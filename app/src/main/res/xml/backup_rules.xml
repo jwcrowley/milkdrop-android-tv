@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="file" path="presets/" />
+    <exclude domain="file" path=".preset_count" />
+    <exclude domain="file" path=".preset_index" />
+    <exclude domain="file" path=".preset_version" />
+    <exclude domain="file" path="crash_log.txt" />
+</full-backup-content>

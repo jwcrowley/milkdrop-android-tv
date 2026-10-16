@@ -1,22 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.milkdrop">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Audio capture permission -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-
-    <!-- External storage for user presets (API < 29) -->
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
-
-    <!-- Write to Downloads for crash log export (API < 29) -->
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
-
-    <!-- Media audio access for API 33+ -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
 
     <!-- Android TV / Leanback requirements -->
     <uses-feature
@@ -27,10 +15,15 @@
     <uses-feature
         android:name="android.hardware.touchscreen"
         android:required="false" />
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
 
     <application
         android:allowBackup="true"
         android:banner="@drawable/app_banner"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
@@ -39,8 +32,7 @@
         <!-- Launcher activity — appears in Android TV home screen -->
         <activity
             android:name=".LauncherActivity"
-            android:exported="true"
-            android:label="@string/app_name">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -55,8 +47,7 @@
         <activity
             android:name=".VisualizerActivity"
             android:exported="false"
-            android:configChanges="orientation|screenSize"
-            android:label="@string/app_name" />
+            android:configChanges="orientation|screenSize" />
 
         <!-- Preset browser — hosts PresetBrowserFragment (VerticalGridSupportFragment) -->
         <activity
@@ -71,6 +62,11 @@
             android:exported="false"
             android:configChanges="orientation|screenSize"
             android:label="@string/settings" />
+
+        <service
+            android:name=".audio.PlaybackCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
 
     </application>
 

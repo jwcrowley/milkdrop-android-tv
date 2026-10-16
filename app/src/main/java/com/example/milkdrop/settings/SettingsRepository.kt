@@ -29,6 +29,7 @@ class SettingsRepository(context: Context) {
         private const val KEY_AUDIO_SOURCE_EXPLICIT = "audio_source_explicit"
         private const val KEY_RENDER_WIDTH = "render_width"
         private const val KEY_RENDER_HEIGHT = "render_height"
+        private const val KEY_RENDER_EXPLICIT = "render_explicit"
         private const val KEY_SHOW_FPS = "show_fps"
     }
 
@@ -64,14 +65,18 @@ class SettingsRepository(context: Context) {
             ?: defaults.audioSource.name
         val audioSource = runCatching { AudioSourceType.valueOf(storedAudioSource) }
             .getOrDefault(defaults.audioSource)
-        val migratedAudioSource = if (
-            audioSource == AudioSourceType.SYSTEM_AUDIO ||
-            audioSource == AudioSourceType.SILENT
-        ) {
-            AudioSourceType.AUTO_PULSE
-        } else {
-            audioSource
-        }
+        val audioSourceExplicit = prefs.getBoolean(KEY_AUDIO_SOURCE_EXPLICIT, false)
+        val migratedAudioSource =
+            if (!audioSourceExplicit && audioSource != AudioSourceType.MICROPHONE) {
+                AudioSourceType.SYSTEM_AUDIO
+            } else {
+                audioSource
+            }
+        val renderExplicit = prefs.getBoolean(KEY_RENDER_EXPLICIT, false)
+        val storedRenderWidth = prefs.getInt(KEY_RENDER_WIDTH, defaults.renderWidth)
+        val storedRenderHeight = prefs.getInt(KEY_RENDER_HEIGHT, defaults.renderHeight)
+        val renderWidth = if (renderExplicit) storedRenderWidth else defaults.renderWidth
+        val renderHeight = if (renderExplicit) storedRenderHeight else defaults.renderHeight
 
         return AppSettings(
             cycleIntervalSeconds = prefs.getInt(KEY_CYCLE_INTERVAL, defaults.cycleIntervalSeconds)
@@ -82,8 +87,8 @@ class SettingsRepository(context: Context) {
             bassThreshold = prefs.getFloat(KEY_BASS_THRESHOLD, defaults.bassThreshold)
                 .coerceIn(0f, 1f),
             audioSource = migratedAudioSource,
-            renderWidth = prefs.getInt(KEY_RENDER_WIDTH, defaults.renderWidth),
-            renderHeight = prefs.getInt(KEY_RENDER_HEIGHT, defaults.renderHeight),
+            renderWidth = renderWidth,
+            renderHeight = renderHeight,
             showFps = prefs.getBoolean(KEY_SHOW_FPS, defaults.showFps)
         )
     }
@@ -98,6 +103,7 @@ class SettingsRepository(context: Context) {
             putBoolean(KEY_AUDIO_SOURCE_EXPLICIT, audioSourceExplicit)
             putInt(KEY_RENDER_WIDTH, settings.renderWidth)
             putInt(KEY_RENDER_HEIGHT, settings.renderHeight)
+            putBoolean(KEY_RENDER_EXPLICIT, true)
             putBoolean(KEY_SHOW_FPS, settings.showFps)
             apply()
         }

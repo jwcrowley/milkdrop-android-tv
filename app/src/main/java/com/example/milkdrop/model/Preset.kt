@@ -3,7 +3,7 @@ package com.example.milkdrop.model
 /**
  * Represents a single MilkDrop preset file.
  *
- * @param id           SHA-256 of the file content (stable across renames).
+ * @param id           Absolute file path used as the stable library identifier.
  * @param name         Display name (filename without extension).
  * @param filePath     Absolute path on the device filesystem.
  * @param format       File format: [PresetFormat.MILK] or [PresetFormat.MILK2].

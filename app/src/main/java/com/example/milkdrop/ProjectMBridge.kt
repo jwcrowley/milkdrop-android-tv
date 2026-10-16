@@ -64,10 +64,15 @@ class ProjectMBridge {
      * [pcmData] is interleaved 16-bit samples; [channels] is 1 (mono) or 2 (stereo).
      * Also updates the internal bass/treble energy metrics used by [getBass] and [getTreble].
      */
-    fun feedAudio(pcmData: ShortArray, channels: Int) =
-        feedAudioNative(handle, pcmData, channels)
+    fun feedAudio(pcmData: ShortArray, channels: Int, sampleRate: Int) =
+        feedAudioNative(handle, pcmData, channels, sampleRate)
 
-    private external fun feedAudioNative(handle: Long, pcmData: ShortArray, channels: Int)
+    private external fun feedAudioNative(
+        handle: Long,
+        pcmData: ShortArray,
+        channels: Int,
+        sampleRate: Int
+    )
 
     // -------------------------------------------------------------------------
     // Preset management

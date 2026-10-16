@@ -9,16 +9,19 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.example.milkdrop.audio.AudioCaptureManager
 import com.example.milkdrop.audio.AudioFrameQueue
+import com.example.milkdrop.audio.AudioSourceType
 import com.example.milkdrop.audio.BeatDetector
 import com.example.milkdrop.preset.AssetExtractor
 import com.example.milkdrop.preset.PresetLibrary
 import com.example.milkdrop.preset.PresetManager
-import com.example.milkdrop.preset.PresetParser
 import com.example.milkdrop.preset.PresetFavoritesRepository
 import com.example.milkdrop.renderer.ProjectMRenderer
 import com.example.milkdrop.settings.SettingsRepository
 import com.example.milkdrop.ui.MainFragment
 import com.example.milkdrop.ui.SplashFragment
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListener {
 
@@ -29,8 +32,6 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
         lateinit var settingsRepository: SettingsRepository
             private set
         lateinit var assetExtractor: AssetExtractor
-            private set
-        lateinit var presetParser: PresetParser
             private set
         lateinit var bridge: ProjectMBridge
             private set
@@ -44,6 +45,8 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
             private set
         lateinit var presetLibrary: PresetLibrary
             private set
+        lateinit var appUserPresetDirectory: File
+            private set
         lateinit var presetFavoritesRepository: PresetFavoritesRepository
             private set
         lateinit var presetManager: PresetManager
@@ -52,11 +55,14 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
             private set
 
         /** Called after extraction completes to rebuild the library with all extracted presets. */
-        fun rebuildPresetLibrary() {
-            presetLibrary = PresetLibrary.build(
-                bundledPresetDir = assetExtractor.getPresetDirectory(),
-                parser = presetParser
-            )
+        suspend fun rebuildPresetLibrary() {
+            val rebuiltLibrary = withContext(Dispatchers.IO) {
+                PresetLibrary.build(
+                    bundledPresetDir = assetExtractor.getPresetDirectory(),
+                    appUserPresetDir = appUserPresetDirectory
+                )
+            }
+            presetLibrary = rebuiltLibrary
             presetFavoritesRepository.pruneToLibrary(presetLibrary)
             presetManager.rebuildLibrary(presetLibrary)
         }
@@ -71,9 +77,6 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
             initializeSingletons()
         }
 
-        // Request RECORD_AUDIO at runtime — just having it in the manifest isn't enough on API 23+
-        requestAudioPermissionIfNeeded()
-
         if (savedInstanceState != null) return
 
         // Always go through SplashFragment — it runs extractPresetsIfNeeded() which checks
@@ -82,8 +85,19 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
         showSplashFragment()
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Auto Pulse is the default and needs no sensitive permission. Ask only
+        // after the user explicitly selects microphone input.
+        requestAudioPermissionIfNeeded()
+    }
+
     private fun requestAudioPermissionIfNeeded() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+        val audioSource = settingsRepository.get().audioSource
+        if ((audioSource == AudioSourceType.MICROPHONE ||
+                (audioSource == AudioSourceType.SYSTEM_AUDIO &&
+                    android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q)) &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED) {
             Log.i(TAG, "Requesting RECORD_AUDIO permission")
             ActivityCompat.requestPermissions(
@@ -108,7 +122,10 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
                 // If the visualizer is already running it will pick this up on next onResume.
                 // Nothing else needed here — AudioCaptureManager checks permission on each start().
             } else {
-                Log.w(TAG, "RECORD_AUDIO permission denied — visualizer will run in silent mode")
+                Log.w(TAG, "RECORD_AUDIO permission denied — reverting to Auto Pulse")
+                settingsRepository.update(
+                    settingsRepository.get().copy(audioSource = AudioSourceType.AUTO_PULSE)
+                )
             }
         }
     }
@@ -121,7 +138,6 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
         settingsRepository  = SettingsRepository(applicationContext)
         assetExtractor      = AssetExtractor(applicationContext)
         bridge              = ProjectMBridge()
-        presetParser        = PresetParser(bridge)
         audioFrameQueue     = AudioFrameQueue(capacity = 4)
         audioCaptureManager = AudioCaptureManager(applicationContext, audioFrameQueue)
         renderer = ProjectMRenderer(
@@ -132,9 +148,12 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
         beatDetector  = BeatDetector(bridge)
         renderer.setBeatDetector(beatDetector)
         presetFavoritesRepository = PresetFavoritesRepository(applicationContext)
+        appUserPresetDirectory = (
+            getExternalFilesDir("presets") ?: File(filesDir, "user_presets")
+        ).also { it.mkdirs() }
         presetLibrary = PresetLibrary.build(
             bundledPresetDir = assetExtractor.getPresetDirectory(),
-            parser = presetParser
+            appUserPresetDir = appUserPresetDirectory
         )
         presetFavoritesRepository.pruneToLibrary(presetLibrary)
         presetManager = PresetManager(

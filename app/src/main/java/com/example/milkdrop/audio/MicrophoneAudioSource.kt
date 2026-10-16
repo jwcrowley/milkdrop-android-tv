@@ -35,28 +35,55 @@ class MicrophoneAudioSource : AudioSource {
         sampleRate = if (minBuf44 > 0) preferredRate else fallbackRate
         val minBuf = AudioRecord.getMinBufferSize(
             sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-        bufferSize = minBuf * 2  // Double buffer for smoother reads
+        // Some TV devices report an error for every queried rate. Keep the
+        // constructor valid so start() can fail cleanly instead of crashing.
+        bufferSize = if (minBuf > 0) minBuf * 2 else 4096
     }
 
     override fun start(callback: (AudioFrame) -> Unit) {
         if (running.getAndSet(true)) return  // Already running
 
-        val record = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            sampleRate,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_16BIT,
-            bufferSize
-        )
+        val record = try {
+            AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                sampleRate,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                bufferSize
+            )
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Microphone permission was revoked", e)
+            running.set(false)
+            return
+        } catch (e: RuntimeException) {
+            Log.e(TAG, "AudioRecord creation failed", e)
+            running.set(false)
+            return
+        }
 
         if (record.state != AudioRecord.STATE_INITIALIZED) {
             Log.e(TAG, "AudioRecord failed to initialize")
+            record.release()
             running.set(false)
             return
         }
 
         audioRecord = record
-        record.startRecording()
+        try {
+            record.startRecording()
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Microphone permission was revoked", e)
+            audioRecord = null
+            record.release()
+            running.set(false)
+            return
+        } catch (e: RuntimeException) {
+            Log.e(TAG, "AudioRecord failed to start", e)
+            audioRecord = null
+            record.release()
+            running.set(false)
+            return
+        }
 
         captureThread = Thread({
             val buffer = ShortArray(bufferSize / 2)  // bufferSize is in bytes; ShortArray is 2 bytes/element
@@ -82,13 +109,26 @@ class MicrophoneAudioSource : AudioSource {
 
     override fun stop() {
         running.set(false)
+        // Stop first to unblock a pending read. Joining before stop can leave the
+        // capture thread using AudioRecord while another thread releases it.
+        audioRecord?.let { record ->
+            try {
+                if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                    record.stop()
+                }
+            } catch (e: IllegalStateException) {
+                Log.w(TAG, "AudioRecord stop failed", e)
+            }
+            Unit
+        }
         captureThread?.join(500)
         captureThread = null
         audioRecord?.apply {
-            stop()
             release()
         }
         audioRecord = null
         Log.i(TAG, "Stopped microphone capture")
     }
+
+    fun isRunning(): Boolean = running.get()
 }

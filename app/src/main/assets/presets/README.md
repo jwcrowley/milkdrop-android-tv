@@ -2,44 +2,28 @@
 
 ## Overview
 
-This directory contains bundled `.milk` preset files for the MilkDrop TV app.
-The app bundles 200+ presets across three collections, organized into subdirectories.
+This directory contains the bundled `.milk` preset files.
+The app includes 9,795 projectM Cream of the Crop presets.
 
 ## Directory Structure
 
 ```
 presets/
-├── projectm-cream/     # ~100 presets from the projectM "Cream of the Crop" pack
-├── milkdrop2/          # ~60 presets from the original MilkDrop 2 collection
-└── milkdrop3/          # ~50 presets from the MilkDrop3 community library
+└── projectm-cream/
+    ├── Dancer/
+    ├── Drawing/
+    └── ...
 ```
 
-## ⚠️ Action Required Before Building
-
-These directories must be populated with real `.milk` preset files before building
-a production APK. The sample files included here are minimal placeholders for
-development and testing purposes only.
-
-## Where to Get Real Presets
+## Preset Source
 
 ### projectM Cream of the Crop (`projectm-cream/`)
-- **Source:** [projectM GitHub Releases](https://github.com/projectM-visualizer/projectm/releases)
-- Look for the "presets-cream-of-the-crop" asset in any recent release
-- Contains ~100 high-quality community-curated presets
-
-### MilkDrop 2 Classic Collection (`milkdrop2/`)
-- **Source:** Bundled with the original [MilkDrop 2 Winamp plugin](https://www.geisswerks.com/milkdrop/)
-- Also available via the projectM repository under `src/projectM-qt/presets/`
-- Contains the classic presets from the original MilkDrop 2 release
-
-### MilkDrop3 Community Presets (`milkdrop3/`)
-- **Source:** [MilkDrop3 GitHub Repository](https://github.com/milkdrop2077/MilkDrop3)
-- Community-contributed presets compatible with the MilkDrop3 engine
-- Contains ~50 modern presets with advanced shader effects
+- **Source:** [projectM Cream of the Crop](https://github.com/projectM-visualizer/presets-cream-of-the-crop)
+- **Count:** 9,795 presets
 
 ## Preset File Format
 
-Preset files use the `.milk` (MilkDrop 2) or `.milk2` extension.
+Preset files use the standard `.milk` extension.
 They are plain-text INI-style files containing:
 - Global parameters (zoom, rotation, wave settings, etc.)
 - Per-frame equations (evaluated once per rendered frame)
@@ -48,8 +32,9 @@ They are plain-text INI-style files containing:
 
 ## Adding User Presets
 
-Users can also add their own presets at runtime by placing `.milk` files in:
+Add `.milk` files to:
 ```
-/sdcard/MilkDrop/presets/
+/sdcard/Android/data/com.example.milkdrop/files/presets/
 ```
-These are merged with bundled presets in the preset browser.
+
+The app merges these files with the bundled presets after a restart.

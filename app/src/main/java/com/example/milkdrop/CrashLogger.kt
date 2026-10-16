@@ -14,7 +14,13 @@ import java.util.Locale
  */
 object CrashLogger {
 
+    @Volatile
+    private var installed = false
+
+    @Synchronized
     fun install(context: Context) {
+        if (installed) return
+
         val appContext = context.applicationContext
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
 
@@ -29,39 +35,17 @@ object CrashLogger {
                 val existing = if (file.exists() && file.length() < 50_000) file.readText() else ""
                 file.writeText(existing + log)
 
-                // Also copy to Downloads so LocalSend / file managers can reach it
-                exportToDownloads(appContext)
             } catch (e: Exception) {
                 // Don't let the logger itself crash
             }
             defaultHandler?.uncaughtException(thread, throwable)
         }
+        installed = true
     }
 
     fun getLog(context: Context): String {
         val file = File(context.filesDir, "crash_log.txt")
         return if (file.exists()) file.readText() else "No crashes logged yet."
-    }
-
-    /**
-     * Copy crash log to Downloads so LocalSend / ES File Explorer / any file
-     * manager can access it. Returns the destination path or null on failure.
-     * Path: /sdcard/Download/milkdrop_crash_log.txt
-     */
-    fun exportToDownloads(context: Context): String? {
-        return try {
-            val src = File(context.filesDir, "crash_log.txt")
-            if (!src.exists()) return null
-            val downloads = android.os.Environment.getExternalStoragePublicDirectory(
-                android.os.Environment.DIRECTORY_DOWNLOADS
-            )
-            downloads.mkdirs()
-            val dst = File(downloads, "milkdrop_crash_log.txt")
-            src.copyTo(dst, overwrite = true)
-            dst.absolutePath
-        } catch (e: Exception) {
-            null
-        }
     }
 
     fun clear(context: Context) {

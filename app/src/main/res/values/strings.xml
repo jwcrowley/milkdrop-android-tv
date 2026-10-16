@@ -10,6 +10,9 @@
     <string name="audio_source_microphone">Microphone</string>
     <string name="audio_source_system">System Audio</string>
     <string name="audio_source_silent">Silent</string>
+    <string name="playback_capture_channel_name">Audio visualization</string>
+    <string name="playback_capture_notification_title">MilkDrop TV is listening</string>
+    <string name="playback_capture_notification_text">Using device playback for the visualizer</string>
     <string name="permission_audio_rationale">Audio permission is needed for the visualizer to react to music. Without it, presets will still play but won\'t respond to sound.</string>
 
     <!-- MainFragment card descriptions -->

@@ -15,11 +15,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Captures system audio playback using [AudioPlaybackCaptureConfiguration] (API 29+).
  *
  * Requires a valid [MediaProjection] token obtained via the MediaProjection consent flow.
- * Falls back to [MicrophoneAudioSource] if the token is revoked.
- *
  * @param mediaProjection A valid [MediaProjection] instance from the consent flow.
  * @param onFallback      Called when the MediaProjection is stopped; the caller should
- *                        switch to [MicrophoneAudioSource] and update the UI.
+ *                        select a safe fallback source and update the UI.
  */
 @RequiresApi(Build.VERSION_CODES.Q)
 class SystemAudioSource(
@@ -56,22 +54,31 @@ class SystemAudioSource(
 
         mediaProjection.registerCallback(projectionCallback, null)
 
-        val captureConfig = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
-            .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
-            .addMatchingUsage(AudioAttributes.USAGE_GAME)
-            .build()
+        val record = try {
+            val captureConfig = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
+                .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
+                .addMatchingUsage(AudioAttributes.USAGE_GAME)
+                .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
+                .build()
 
-        val audioFormat = AudioFormat.Builder()
-            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-            .setSampleRate(sampleRate)
-            .setChannelMask(AudioFormat.CHANNEL_IN_STEREO)
-            .build()
+            val audioFormat = AudioFormat.Builder()
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setSampleRate(sampleRate)
+                .setChannelMask(AudioFormat.CHANNEL_IN_STEREO)
+                .build()
 
-        val record = AudioRecord.Builder()
-            .setAudioPlaybackCaptureConfig(captureConfig)
-            .setAudioFormat(audioFormat)
-            .setBufferSizeInBytes(bufferSize)
-            .build()
+            AudioRecord.Builder()
+                .setAudioPlaybackCaptureConfig(captureConfig)
+                .setAudioFormat(audioFormat)
+                .setBufferSizeInBytes(bufferSize)
+                .build()
+        } catch (e: RuntimeException) {
+            Log.e(TAG, "System audio capture creation failed", e)
+            running.set(false)
+            mediaProjection.unregisterCallback(projectionCallback)
+            onFallback()
+            return
+        }
 
         if (record.state != AudioRecord.STATE_INITIALIZED) {
             Log.e(TAG, "AudioRecord (system audio) failed to initialize")
@@ -82,7 +89,17 @@ class SystemAudioSource(
         }
 
         audioRecord = record
-        record.startRecording()
+        try {
+            record.startRecording()
+        } catch (e: RuntimeException) {
+            Log.e(TAG, "System audio capture failed to start", e)
+            audioRecord = null
+            record.release()
+            running.set(false)
+            mediaProjection.unregisterCallback(projectionCallback)
+            onFallback()
+            return
+        }
 
         captureThread = Thread({
             val buffer = ShortArray(bufferSize / 2)
@@ -109,10 +126,19 @@ class SystemAudioSource(
 
     override fun stop() {
         running.set(false)
+        audioRecord?.let { record ->
+            try {
+                if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                    record.stop()
+                }
+            } catch (e: IllegalStateException) {
+                Log.w(TAG, "System AudioRecord stop failed", e)
+            }
+            Unit
+        }
         captureThread?.join(500)
         captureThread = null
         audioRecord?.apply {
-            stop()
             release()
         }
         audioRecord = null

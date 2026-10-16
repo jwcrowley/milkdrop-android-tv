@@ -8,9 +8,9 @@ Dedicated to HB and TA.
 
 ## Features
 
-- **Full MilkDrop preset support** — loads `.milk` (MilkDrop 2) and `.milk2` (MilkDrop3) preset files
+- **MilkDrop preset support** — loads standard `.milk` preset files through projectM
 - **9,795 bundled presets** — the full projectM Cream of the Crop collection across 10 categories: Dancer, Drawing, Fractal, Geometric, Hypnotic, Particles, Reaction, Sparkle, Supernova, Waveform
-- **Flexible audio reactivity** — Auto Pulse generated input by default, plus optional microphone input on devices that expose one
+- **Playback audio reactivity** — captures eligible device playback on Android 10 or newer
 - **Beat-driven transitions** — optional bass-triggered preset changes with soft-cut cooldowns
 - **Smooth preset cycling** — configurable interval (10–300s) with projectM blend transitions
 - **Favorites and preset lock** — favorite presets, cycle favorites only, or pin the current preset
@@ -106,19 +106,24 @@ Access via the main menu. Options include:
 - Preset cycle interval (10–300 seconds)
 - Transition duration (1–10 seconds)
 - Beat-driven transitions (on/off)
-- Audio source (Auto Pulse / Microphone / Silent)
+- Audio source (System Audio / Auto Pulse / Microphone / Silent)
 - Display resolution (Native / 720p / 1080p)
 - View crash log (for debugging)
 
 ### Audio Sources
 
-Android TV does not provide normal apps with a hidden system-audio loopback device. Capturing real device audio requires Android's media-projection flow, which displays the large recording/casting prompt and is unreliable on TV devices. MilkDrop TV therefore uses these sources:
+Android requires user consent before an app can capture device playback.
+Select **System Audio**, then approve the Android capture prompt.
 
 | Source | Behavior |
 |---|---|
-| **Auto Pulse** | Default. Generates a reactive beat-like signal for projectM. No microphone permission, green privacy dot, or casting prompt. |
+| **System Audio** | Default on Android 10 or newer. Captures media and game playback that permits capture. |
+| **Auto Pulse** | Generates a synthetic signal when playback capture is unavailable or denied. |
 | **Microphone** | Uses a real device microphone if Android exposes one. This is real input, but Android shows the green privacy indicator while active. |
 | **Silent** | No audio input. Useful for testing non-reactive rendering. |
+
+Some playback apps block audio capture.
+Android 9 and earlier do not provide this playback-capture API.
 
 ### Preset Control
 
@@ -126,11 +131,19 @@ Use **▲ Up** to mark the current preset as a favorite. Use **▼ Down** to swi
 
 ### Adding Your Own Presets
 
-Copy `.milk` or `.milk2` preset files to:
+Copy `.milk` preset files to the app-specific directory:
 ```
-/sdcard/MilkDrop/presets/
+/sdcard/Android/data/com.example.milkdrop/files/presets/
 ```
-They'll appear in the preset browser alongside the bundled presets on next launch.
+
+For example, use Android Debug Bridge (ADB):
+
+```bash
+adb shell mkdir -p /sdcard/Android/data/com.example.milkdrop/files/presets
+adb push my-preset.milk /sdcard/Android/data/com.example.milkdrop/files/presets/
+```
+
+Restart the app after you add presets.
 
 ---
 
@@ -195,7 +208,7 @@ Android UI (Kotlin)
 | `PresetLibrary` | Indexes bundled and user preset files |
 | `AssetExtractor` | Copies bundled presets to internal storage on first launch |
 | `SettingsRepository` | Persists user preferences via `SharedPreferences` |
-| `CrashLogger` | Writes uncaught exceptions to Downloads for debugging |
+| `CrashLogger` | Stores uncaught exceptions locally for the Settings debug view |
 
 ---
 
@@ -204,8 +217,6 @@ Android UI (Kotlin)
 | Collection | Source | Count |
 |---|---|---|
 | projectM Cream of the Crop | [projectM-visualizer/presets-cream-of-the-crop](https://github.com/projectM-visualizer/presets-cream-of-the-crop) | 9,795 |
-| MilkDrop 2 Classic | [Geiss Works](https://www.geisswerks.com/milkdrop/) | bundled |
-| MilkDrop3 Community | [milkdrop2077/MilkDrop3](https://github.com/milkdrop2077/MilkDrop3) | bundled |
 
 ---
 
@@ -231,6 +242,7 @@ Android UI (Kotlin)
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+See [PRIVACY.md](PRIVACY.md) for local audio and crash-log handling.
 
 projectM is licensed under the LGPL 2.1. See the [projectM repository](https://github.com/projectM-visualizer/projectm) for details.
 

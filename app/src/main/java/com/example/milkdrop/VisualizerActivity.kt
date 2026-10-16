@@ -1,6 +1,10 @@
 package com.example.milkdrop
 
+import android.app.Activity
+import android.content.Intent
+import android.media.projection.MediaProjection
 import android.opengl.GLSurfaceView
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -9,16 +13,17 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.milkdrop.audio.AudioCaptureManager
 import com.example.milkdrop.audio.AudioFrameQueue
 import com.example.milkdrop.audio.AudioSourceType
 import com.example.milkdrop.audio.BeatDetector
+import com.example.milkdrop.audio.PlaybackCaptureService
 import com.example.milkdrop.preset.PresetLibrary
 import com.example.milkdrop.preset.PresetFavoritesRepository
 import com.example.milkdrop.preset.PresetManager
-import com.example.milkdrop.preset.PresetParser
 import com.example.milkdrop.renderer.ProjectMRenderer
 import com.example.milkdrop.renderer.RenderResolution
 import com.example.milkdrop.settings.SettingsRepository
@@ -45,11 +50,30 @@ class VisualizerActivity : FragmentActivity() {
     private lateinit var settingsRepository: SettingsRepository
     private var ownsInstances = false
     private var audioIndicatorJob: Job? = null
+    private var playbackCaptureJob: Job? = null
     private var activeAudioSource = AudioSourceType.SILENT
+    private var mediaProjection: MediaProjection? = null
+    private var projectionRequestInFlight = false
+
+    private val playbackCaptureLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        projectionRequestInFlight = false
+        val data = result.data
+        if (result.resultCode == Activity.RESULT_OK && data != null &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        ) {
+            PlaybackCaptureService.start(this, result.resultCode, data)
+        } else {
+            settingsRepository.update(
+                settingsRepository.get().copy(audioSource = AudioSourceType.AUTO_PULSE)
+            )
+            audioCaptureManager.start(AudioSourceType.AUTO_PULSE)
+        }
+    }
 
     private val overlayHideHandler = Handler(Looper.getMainLooper())
     private val audioLevelHandler = Handler(Looper.getMainLooper())
-    private val fpsHandler = Handler(Looper.getMainLooper())
     private var overlayVisible = false
     private var frameCount = 0
     private var fpsLastTimeMs = 0L
@@ -108,7 +132,12 @@ class VisualizerActivity : FragmentActivity() {
             renderer.setBeatDetector(beatDetector)
             favoritesRepository = PresetFavoritesRepository(applicationContext)
             presetManager = PresetManager(
-                library      = PresetLibrary.build(File(filesDir, "presets"), PresetParser(bridge)),
+                library = PresetLibrary.build(
+                    bundledPresetDir = File(filesDir, "presets"),
+                    appUserPresetDir = (
+                        getExternalFilesDir("presets") ?: File(filesDir, "user_presets")
+                    ).also { it.mkdirs() }
+                ),
                 renderer     = renderer,
                 beatDetector = beatDetector,
                 favoritesRepository = favoritesRepository,
@@ -161,16 +190,31 @@ class VisualizerActivity : FragmentActivity() {
 
         setContentView(root)
         showOverlay()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            playbackCaptureJob = lifecycleScope.launch {
+                PlaybackCaptureService.projectionFlow.collectLatest { projection ->
+                    mediaProjection = projection
+                    if (projection != null &&
+                        settingsRepository.get().audioSource == AudioSourceType.SYSTEM_AUDIO
+                    ) {
+                        audioCaptureManager.startSystemAudio(projection)
+                    }
+                }
+            }
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        surfaceView.onResume()
         val settings = settingsRepository.get()
+        applySurfaceResolution(settings.renderWidth, settings.renderHeight)
+        surfaceView.onResume()
         startAudio(settings.audioSource)
-        if (presetManager.getCurrentPreset() == null) {
-            presetManager.start()
-        }
+        // Always restart the manager after onPause(). Preset browser selection can set
+        // a current preset before this activity starts, but the timer and beat listener
+        // still need to be started.
+        presetManager.start()
         val resolution = when {
             settings.renderWidth == 1280  -> RenderResolution.HD_720P
             settings.renderWidth == 1920  -> RenderResolution.FHD_1080P
@@ -178,6 +222,7 @@ class VisualizerActivity : FragmentActivity() {
         }
         renderer.setRenderResolution(resolution)
         renderer.setTransitionDuration(settings.transitionDurationSeconds)
+        beatDetector.bassThreshold = settings.bassThreshold
 
         // Keep the audio indicator in sync with the actual active source
         audioIndicatorJob?.cancel()
@@ -191,11 +236,11 @@ class VisualizerActivity : FragmentActivity() {
         audioLevelHandler.post(audioLevelRunnable)
 
         // FPS counter
-        fpsLastTimeMs = System.currentTimeMillis()
+        fpsLastTimeMs = android.os.SystemClock.elapsedRealtime()
         frameCount = 0
         if (settings.showFps) {
             fpsText.visibility = View.VISIBLE
-            renderer.setFrameCallback { runOnUiThread { onFrame() } }
+            renderer.setFrameCallback { onFrame() }
         } else {
             fpsText.visibility = View.GONE
             renderer.setFrameCallback(null)
@@ -205,12 +250,14 @@ class VisualizerActivity : FragmentActivity() {
     override fun onPause() {
         super.onPause()
         audioLevelHandler.removeCallbacksAndMessages(null)
-        fpsHandler.removeCallbacksAndMessages(null)
         renderer.setFrameCallback(null)
         audioIndicatorJob?.cancel()
         audioIndicatorJob = null
         audioCaptureManager.stop()
         presetManager.stop()
+        if (ownsInstances && isFinishing) {
+            surfaceView.queueEvent { renderer.release() }
+        }
         surfaceView.onPause()
     }
 
@@ -218,10 +265,21 @@ class VisualizerActivity : FragmentActivity() {
         super.onDestroy()
         overlayHideHandler.removeCallbacksAndMessages(null)
         audioLevelHandler.removeCallbacksAndMessages(null)
-        fpsHandler.removeCallbacksAndMessages(null)
+        playbackCaptureJob?.cancel()
+        playbackCaptureJob = null
+        if (isFinishing && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            PlaybackCaptureService.stop(this)
+        }
         if (ownsInstances) {
             presetManager.release()
-            renderer.release()
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!projectionRequestInFlight && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            PlaybackCaptureService.stop(this)
+            mediaProjection = null
         }
     }
 
@@ -300,12 +358,24 @@ class VisualizerActivity : FragmentActivity() {
     }
 
     private fun startAudio(sourceType: AudioSourceType) {
-        val safeSource = if (sourceType == AudioSourceType.SYSTEM_AUDIO) {
-            AudioSourceType.AUTO_PULSE
-        } else {
-            sourceType
+        if (sourceType != AudioSourceType.SYSTEM_AUDIO) {
+            audioCaptureManager.start(sourceType)
+            return
         }
-        audioCaptureManager.start(safeSource)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            audioCaptureManager.start(AudioSourceType.AUTO_PULSE)
+            return
+        }
+        mediaProjection?.let {
+            audioCaptureManager.startSystemAudio(it)
+            return
+        }
+        audioCaptureManager.start(AudioSourceType.AUTO_PULSE)
+        if (!projectionRequestInFlight) {
+            projectionRequestInFlight = true
+            val manager = getSystemService(android.media.projection.MediaProjectionManager::class.java)
+            playbackCaptureLauncher.launch(manager.createScreenCaptureIntent())
+        }
     }
 
     private fun updateAudioIndicator() {
@@ -313,27 +383,28 @@ class VisualizerActivity : FragmentActivity() {
         audioIndicatorText.text = when (activeAudioSource) {
             AudioSourceType.AUTO_PULSE -> "⚡ Auto Pulse ${level}%"
             AudioSourceType.MICROPHONE -> "🎤 Mic ${level}%"
-            AudioSourceType.SYSTEM_AUDIO -> "🔇 System disabled"
+            AudioSourceType.SYSTEM_AUDIO -> "♫ Device audio ${level}%"
             AudioSourceType.SILENT -> "🔇 Silent"
         }
     }
 
     private fun onFrame() {
         frameCount++
-        val now = System.currentTimeMillis()
+        val now = android.os.SystemClock.elapsedRealtime()
         val elapsed = now - fpsLastTimeMs
         if (elapsed >= 1000L) {
             val fps = frameCount * 1000f / elapsed
-            fpsText.text = "%.0f fps".format(fps)
             frameCount = 0
             fpsLastTimeMs = now
+            fpsText.post { fpsText.text = "%.0f fps".format(fps) }
         }
     }
 
-    override fun onTrimMemory(level: Int) {
-        super.onTrimMemory(level)
-        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) {
-            renderer.setRenderResolution(RenderResolution.HALF_NATIVE)
+    private fun applySurfaceResolution(width: Int, height: Int) {
+        if (width > 0 && height > 0) {
+            surfaceView.holder.setFixedSize(width, height)
+        } else {
+            surfaceView.holder.setSizeFromLayout()
         }
     }
 }

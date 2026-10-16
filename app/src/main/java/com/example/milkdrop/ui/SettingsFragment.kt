@@ -41,6 +41,7 @@ class SettingsFragment : GuidedStepSupportFragment() {
         // Sub-action IDs for audio source
         private const val SUB_AUDIO_AUTO_PULSE     = 9L
         private const val SUB_AUDIO_MIC            = 10L
+        private const val SUB_AUDIO_SYSTEM         = 11L
         private const val SUB_AUDIO_SILENT         = 12L
 
         // Sub-action IDs for resolution
@@ -243,6 +244,14 @@ class SettingsFragment : GuidedStepSupportFragment() {
                 updateActionDescription(ACTION_AUDIO_SOURCE, audioSourceLabel(AudioSourceType.MICROPHONE))
                 updateAudioSourceSubActions(AudioSourceType.MICROPHONE)
             }
+            SUB_AUDIO_SYSTEM -> {
+                workingSettings = workingSettings.copy(audioSource = AudioSourceType.SYSTEM_AUDIO)
+                updateActionDescription(
+                    ACTION_AUDIO_SOURCE,
+                    audioSourceLabel(AudioSourceType.SYSTEM_AUDIO)
+                )
+                updateAudioSourceSubActions(AudioSourceType.SYSTEM_AUDIO)
+            }
             SUB_AUDIO_SILENT -> {
                 workingSettings = workingSettings.copy(audioSource = AudioSourceType.SILENT)
                 updateActionDescription(ACTION_AUDIO_SOURCE, audioSourceLabel(AudioSourceType.SILENT))
@@ -304,6 +313,13 @@ class SettingsFragment : GuidedStepSupportFragment() {
                 .description("Generated reactive signal, no privacy dot")
                 .checkSetId(GuidedAction.CHECKBOX_CHECK_SET_ID)
                 .checked(current == AudioSourceType.AUTO_PULSE)
+                .build(),
+            GuidedAction.Builder(requireContext())
+                .id(SUB_AUDIO_SYSTEM)
+                .title(getString(R.string.audio_source_system))
+                .description("Captures device playback on Android 10 or newer")
+                .checkSetId(GuidedAction.CHECKBOX_CHECK_SET_ID)
+                .checked(current == AudioSourceType.SYSTEM_AUDIO)
                 .build(),
             GuidedAction.Builder(requireContext())
                 .id(SUB_AUDIO_MIC)
