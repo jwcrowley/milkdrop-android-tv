@@ -2,6 +2,7 @@ package com.example.milkdrop
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.core.app.ActivityCompat
@@ -11,6 +12,8 @@ import com.example.milkdrop.audio.AudioCaptureManager
 import com.example.milkdrop.audio.AudioFrameQueue
 import com.example.milkdrop.audio.AudioSourceType
 import com.example.milkdrop.audio.BeatDetector
+import com.example.milkdrop.audio.PlaybackCaptureService
+import com.example.milkdrop.model.Preset
 import com.example.milkdrop.preset.AssetExtractor
 import com.example.milkdrop.preset.PresetLibrary
 import com.example.milkdrop.preset.PresetManager
@@ -19,12 +22,14 @@ import com.example.milkdrop.renderer.ProjectMRenderer
 import com.example.milkdrop.settings.SettingsRepository
 import com.example.milkdrop.ui.MainFragment
 import com.example.milkdrop.ui.SplashFragment
+import com.example.milkdrop.ui.groupPresetsByCategory
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListener {
 
+    @Suppress("StaticFieldLeak")
     companion object {
         private const val TAG = "LauncherActivity"
         private const val REQUEST_AUDIO_PERMISSION = 1001
@@ -54,6 +59,15 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
         var isInitialized: Boolean = false
             private set
 
+        /**
+         * Presets grouped by category, computed off the main thread once the
+         * library is built. The preset browser reads this instead of re-grouping
+         * ~9.8k presets on every open.
+         */
+        @Volatile
+        var presetCategories: List<Pair<String, List<Preset>>> = emptyList()
+            private set
+
         /** Called after extraction completes to rebuild the library with all extracted presets. */
         suspend fun rebuildPresetLibrary() {
             val rebuiltLibrary = withContext(Dispatchers.IO) {
@@ -63,7 +77,10 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
                 )
             }
             presetLibrary = rebuiltLibrary
-            presetFavoritesRepository.pruneToLibrary(presetLibrary)
+            presetCategories = withContext(Dispatchers.IO) {
+                groupPresetsByCategory(rebuiltLibrary.presets)
+            }
+            // rebuildLibrary() prunes favorites and rebuilds the shuffle.
             presetManager.rebuildLibrary(presetLibrary)
         }
     }
@@ -77,7 +94,11 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
             initializeSingletons()
         }
 
-        if (savedInstanceState != null) return
+        // If the process was restarted and the static singletons are already
+        // populated, the restored fragment can be used as-is. Otherwise (fresh
+        // launch or process death with an empty library) run the splash, which
+        // builds the library off the main thread.
+        if (savedInstanceState != null && presetLibrary.size() > 0) return
 
         // Always go through SplashFragment — it runs extractPresetsIfNeeded() which checks
         // the version stamp and re-extracts if the app was updated. Only skips if already
@@ -90,6 +111,14 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
         // Auto Pulse is the default and needs no sensitive permission. Ask only
         // after the user explicitly selects microphone input.
         requestAudioPermissionIfNeeded()
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // Leaving the app releases any held MediaProjection (privacy/battery).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            PlaybackCaptureService.stop(this)
+        }
     }
 
     private fun requestAudioPermissionIfNeeded() {
@@ -151,11 +180,9 @@ class LauncherActivity : FragmentActivity(), SplashFragment.SplashCompleteListen
         appUserPresetDirectory = (
             getExternalFilesDir("presets") ?: File(filesDir, "user_presets")
         ).also { it.mkdirs() }
-        presetLibrary = PresetLibrary.build(
-            bundledPresetDir = assetExtractor.getPresetDirectory(),
-            appUserPresetDir = appUserPresetDirectory
-        )
-        presetFavoritesRepository.pruneToLibrary(presetLibrary)
+        // Start with an empty library so the expensive index build (and favorite
+        // pruning) happens off the main thread in rebuildPresetLibrary().
+        presetLibrary = PresetLibrary.empty()
         presetManager = PresetManager(
             library      = presetLibrary,
             renderer     = renderer,

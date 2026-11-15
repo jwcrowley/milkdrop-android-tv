@@ -11,7 +11,7 @@
         android:id="@+id/preset_browser_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Browse Presets"
+        android:text="@string/browse_presets"
         android:textColor="#FFFFFF"
         android:textSize="32sp"
         android:textStyle="bold"

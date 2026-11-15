@@ -36,7 +36,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="MilkDrop"
+            android:text="@string/menu_branding_name"
             android:textColor="#FFFFFF"
             android:textSize="52sp"
             android:textStyle="bold"
@@ -46,7 +46,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="TV"
+            android:text="@string/menu_branding_tv"
             android:textColor="#BB86FC"
             android:textSize="52sp"
             android:textStyle="bold"
@@ -63,7 +63,7 @@
         <TextView
             android:layout_width="240dp"
             android:layout_height="wrap_content"
-            android:text="Music visualizer powered by projectM"
+            android:text="@string/menu_branding_tagline"
             android:textColor="#88FFFFFF"
             android:textSize="16sp"
             android:lineSpacingMultiplier="1.4" />
@@ -106,7 +106,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="▶  Start Visualizer"
+                android:text="@string/menu_start"
                 android:textColor="#FFFFFF"
                 android:textSize="22sp"
                 android:textStyle="bold" />
@@ -130,7 +130,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="⊞  Browse Presets"
+                android:text="@string/menu_browse"
                 android:textColor="#DDDDDD"
                 android:textSize="20sp" />
 
@@ -152,7 +152,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="⚙  Settings"
+                android:text="@string/menu_settings"
                 android:textColor="#DDDDDD"
                 android:textSize="20sp" />
 
@@ -167,7 +167,7 @@
         android:layout_alignParentBottom="true"
         android:layout_alignParentEnd="true"
         android:layout_margin="24dp"
-        android:text="D-pad to navigate  •  OK to select"
+        android:text="@string/menu_hint"
         android:textColor="#44FFFFFF"
         android:textSize="14sp" />
 
@@ -178,7 +178,7 @@
         android:layout_alignParentBottom="true"
         android:layout_alignParentStart="true"
         android:layout_margin="24dp"
-        android:text="🦵 it's a leg jam!"
+        android:text="@string/menu_tagline"
         android:textColor="#44FFFFFF"
         android:textSize="14sp" />
 

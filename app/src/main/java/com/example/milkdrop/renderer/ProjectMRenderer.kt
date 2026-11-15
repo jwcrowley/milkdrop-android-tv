@@ -25,8 +25,13 @@ class ProjectMRenderer(
 
     private var surfaceWidth = 0
     private var surfaceHeight = 0
-    private val contextLost = AtomicBoolean(false)
     private var bridgeCreated = false
+
+    // Cap rendering at ~60 fps. On high-refresh displays (120 Hz) this halves the
+    // GPU/thermal load with no visual benefit. The 10% tolerance avoids dropping to
+    // 30 fps on a 60 Hz panel because of scheduling jitter.
+    private val minFrameIntervalNanos = 1_000_000_000L / 60L
+    private var lastFrameNanos = 0L
 
     // Pending preset load — set from any thread, consumed on Render Thread
     @Volatile private var pendingPreset: Preset? = null
@@ -58,7 +63,7 @@ class ProjectMRenderer(
         if (w > 0 && h > 0) {
             createBridge(w, h)
         }
-        contextLost.set(false)
+        lastFrameNanos = 0L
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -71,9 +76,6 @@ class ProjectMRenderer(
             } else {
                 bridge.reinitialize(w, h)
             }
-        }
-        if (contextLost.get()) {
-            contextLost.set(false)
         }
     }
 
@@ -88,6 +90,15 @@ class ProjectMRenderer(
     }
 
     override fun onDrawFrame(gl: GL10?) {
+        // Frame-rate cap: skip this callback if the previous render was too recent.
+        val nowNanos = System.nanoTime()
+        if (lastFrameNanos != 0L &&
+            nowNanos - lastFrameNanos < minFrameIntervalNanos * 9 / 10
+        ) {
+            return
+        }
+        lastFrameNanos = nowNanos
+
         if (resolutionChangePending.getAndSet(false)) {
             val (w, h) = resolveResolution()
             bridge.reinitialize(w, h)
@@ -151,13 +162,6 @@ class ProjectMRenderer(
         resolutionChangePending.set(true)
     }
 
-    /** Called when the EGL surface is destroyed (app backgrounded). */
-    fun onContextLost() {
-        contextLost.set(true)
-        bridge.destroy()
-        bridgeCreated = false
-    }
-
     /** Release all resources. Call from the Render Thread or after it has stopped. */
     fun release() {
         bridge.destroy()
@@ -175,10 +179,16 @@ class ProjectMRenderer(
     private fun resolveResolution(): Pair<Int, Int> {
         return when (renderResolution) {
             RenderResolution.NATIVE     -> Pair(surfaceWidth, surfaceHeight)
-            RenderResolution.HALF_NATIVE -> Pair(
-                (surfaceWidth / 2).coerceAtLeast(1),
-                (surfaceHeight / 2).coerceAtLeast(1)
-            )
+            RenderResolution.HALF_NATIVE -> {
+                // Report 0×0 until the surface size is known so callers can defer
+                // creation instead of initialising at a bogus 1×1.
+                if (surfaceWidth <= 0 || surfaceHeight <= 0) {
+                    0 to 0
+                } else {
+                    (surfaceWidth / 2).coerceAtLeast(1) to
+                        (surfaceHeight / 2).coerceAtLeast(1)
+                }
+            }
             RenderResolution.HD_720P    -> Pair(1280, 720)
             RenderResolution.FHD_1080P  -> Pair(1920, 1080)
         }

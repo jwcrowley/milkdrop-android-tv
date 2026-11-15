@@ -19,6 +19,12 @@ class AutoPulseAudioSource : AudioSource {
     private var phase = 0.0
     private var frameIndex = 0
 
+    // Reuse a small pool of buffers instead of allocating one per frame. The
+    // pool is larger than the queue capacity (4) so the consumer always drains a
+    // frame before its buffer is recycled.
+    private val bufferPool = Array(8) { ShortArray(samplesPerFrame) }
+    private var bufferIndex = 0
+
     override fun start(callback: (AudioFrame) -> Unit) {
         if (running.getAndSet(true)) return
 
@@ -52,7 +58,8 @@ class AutoPulseAudioSource : AudioSource {
     }
 
     private fun nextBuffer(): ShortArray {
-        val buffer = ShortArray(samplesPerFrame)
+        val buffer = bufferPool[bufferIndex]
+        bufferIndex = (bufferIndex + 1) % bufferPool.size
         val beatPhase = frameIndex % 24
         val kick = if (beatPhase < 5) 1.0 - beatPhase / 5.0 else 0.0
         val sweep = 0.5 + 0.5 * sin(frameIndex * 0.071)

@@ -29,7 +29,9 @@ class SilentAudioSource : AudioSource {
             while (running.get()) {
                 callback(
                     AudioFrame(
-                        pcmData = silentBuffer.copyOf(),
+                        // The buffer is always all-zero, so it is safe to share a
+                        // single instance across queued frames.
+                        pcmData = silentBuffer,
                         sampleRate = sampleRate,
                         channelCount = channelCount,
                         timestampNanos = System.nanoTime()

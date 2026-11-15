@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.activity.addCallback
 import androidx.fragment.app.FragmentActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -28,6 +29,19 @@ internal fun categoryForPreset(preset: Preset): String {
         "Other"
     }
 }
+
+/**
+ * Group presets by top-level category directory, sorted for display.
+ * Called off the main thread when the library is built (see
+ * [LauncherActivity.rebuildPresetLibrary]).
+ */
+internal fun groupPresetsByCategory(
+    presets: List<Preset>
+): List<Pair<String, List<Preset>>> =
+    presets.groupBy(::categoryForPreset)
+        .entries
+        .sortedBy { it.key.trimStart { c -> !c.isLetter() }.lowercase() }
+        .map { it.key to it.value.sortedBy { p -> p.name.trimStart { c -> !c.isLetter() }.lowercase() } }
 
 /**
  * Two-level preset browser: Category list → Preset list within category.
@@ -60,20 +74,23 @@ class PresetBrowserActivity : FragmentActivity() {
 
         if (LauncherActivity.isInitialized) {
             val favoriteIds = LauncherActivity.presetFavoritesRepository.getFavoriteIds()
-            // Group presets by their top-level category directory
-            val grouped = LauncherActivity.presetLibrary.presets
-                .groupBy(::categoryForPreset)
-                .entries
-                .sortedBy { it.key.trimStart { c -> !c.isLetter() }.lowercase() }
-                .map { it.key to it.value.sortedBy { p -> p.name.trimStart { c -> !c.isLetter() }.lowercase() } }
+            // Categories are pre-grouped off the main thread when the library is
+            // built; fall back to computing them here only if that cache is empty.
+            val grouped = LauncherActivity.presetCategories.ifEmpty {
+                groupPresetsByCategory(LauncherActivity.presetLibrary.presets)
+            }
             val favorites = LauncherActivity.presetLibrary.presets
                 .filter { it.id in favoriteIds }
                 .sortedBy { it.name.lowercase() }
             categories = if (favorites.isNotEmpty()) {
-                listOf("★ Favorites" to favorites) + grouped
+                listOf(getString(R.string.favorites_category) to favorites) + grouped
             } else {
                 grouped
             }
+        }
+
+        onBackPressedDispatcher.addCallback(this) {
+            if (currentCategory != null) showCategoryList() else finish()
         }
 
         showCategoryList()
@@ -81,8 +98,12 @@ class PresetBrowserActivity : FragmentActivity() {
 
     private fun showCategoryList() {
         currentCategory = null
-        titleView.text = "Browse Presets"
-        countView.text = "${categories.size} categories  •  ${categories.sumOf { it.second.size }} presets"
+        titleView.text = getString(R.string.browse_presets)
+        countView.text = getString(
+            R.string.browser_category_count,
+            categories.size,
+            categories.sumOf { it.second.size }
+        )
 
         recyclerView.adapter = CategoryAdapter(categories) { category, presets ->
             showPresetList(category, presets)
@@ -92,7 +113,7 @@ class PresetBrowserActivity : FragmentActivity() {
     private fun showPresetList(category: String, presets: List<Preset>) {
         currentCategory = category
         titleView.text = category
-        countView.text = "${presets.size} presets"
+        countView.text = getString(R.string.preset_count, presets.size)
 
         recyclerView.adapter = PresetAdapter(
             presets = presets,
@@ -110,14 +131,6 @@ class PresetBrowserActivity : FragmentActivity() {
             finish()
         }
         recyclerView.scrollToPosition(0)
-    }
-
-    override fun onBackPressed() {
-        if (currentCategory != null) {
-            showCategoryList()
-        } else {
-            super.onBackPressed()
-        }
     }
 }
 
@@ -142,7 +155,8 @@ class CategoryAdapter(
     override fun onBindViewHolder(holder: VH, position: Int) {
         val (name, presets) = categories[position]
         holder.name.text = name
-        holder.count.text = "${presets.size} presets ▶"
+        holder.count.text =
+            holder.itemView.context.getString(R.string.browser_item_count, presets.size)
         holder.itemView.setOnClickListener { onClick(name, presets) }
         holder.itemView.isFocusable = true
     }
@@ -171,7 +185,11 @@ class PresetAdapter(
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val preset = presets[position]
-        holder.name.text = if (preset.id in favoriteIds) "★ ${preset.name}" else preset.name
+        holder.name.text = if (preset.id in favoriteIds) {
+            holder.itemView.context.getString(R.string.favorite_item, preset.name)
+        } else {
+            preset.name
+        }
         holder.count.text = preset.format.name.lowercase()
         holder.itemView.setOnClickListener { onClick(preset) }
         holder.itemView.isFocusable = true

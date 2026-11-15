@@ -2,50 +2,85 @@
 <resources>
     <string name="app_name">MilkDrop TV</string>
     <string name="splash_loading">Loading presets…</string>
-    <string name="splash_loaded">Ready — %d presets loaded</string>
-    <string name="start_visualizer">Start Visualizer</string>
+    <plurals name="splash_loaded">
+        <item quantity="one">Ready — %d preset loaded</item>
+        <item quantity="other">Ready — %d presets loaded</item>
+    </plurals>
+
+    <!-- Main menu -->
+    <string name="menu_branding_name">MilkDrop</string>
+    <string name="menu_branding_tv">TV</string>
+    <string name="menu_branding_tagline">Music visualizer powered by projectM</string>
+    <string name="menu_start">▶  Start Visualizer</string>
+    <string name="menu_browse">⊞  Browse Presets</string>
+    <string name="menu_settings">⚙  Settings</string>
+    <string name="menu_hint">D-pad to navigate  •  OK to select</string>
+    <string name="menu_tagline">🦵 it\'s a leg jam!</string>
+
+    <!-- Preset browser -->
     <string name="browse_presets">Browse Presets</string>
+    <string name="preset_count">%1$d presets</string>
+    <string name="browser_category_count">%1$d categories  •  %2$d presets</string>
+    <string name="browser_item_count">%1$d presets ▶</string>
+    <string name="favorites_category">★ Favorites</string>
+    <string name="favorite_item">★ %1$s</string>
+
+    <!-- Settings -->
     <string name="settings">Settings</string>
-    <string name="audio_source_auto_pulse">Auto Pulse</string>
-    <string name="audio_source_microphone">Microphone</string>
-    <string name="audio_source_system">System Audio</string>
-    <string name="audio_source_silent">Silent</string>
-    <string name="playback_capture_channel_name">Audio visualization</string>
-    <string name="playback_capture_notification_title">MilkDrop TV is listening</string>
-    <string name="playback_capture_notification_text">Using device playback for the visualizer</string>
-    <string name="permission_audio_rationale">Audio permission is needed for the visualizer to react to music. Without it, presets will still play but won\'t respond to sound.</string>
-
-    <!-- MainFragment card descriptions -->
-    <string name="start_visualizer_desc">Launch the fullscreen MilkDrop visualizer</string>
-    <string name="browse_presets_desc">Browse and select from all available presets</string>
-    <string name="settings_desc">Configure cycle interval, audio source, and more</string>
-
-    <!-- OverlayFragment -->
-    <string name="overlay_action_hints">⏎ Next  ◀ Back  ⚙ Settings</string>
-    <string name="audio_source_label">Audio: %s</string>
-
-    <!-- SettingsFragment guided actions -->
-    <string name="setting_cycle_interval">Preset Cycle Interval</string>
-    <string name="setting_cycle_interval_desc">How long each preset plays before switching (seconds)</string>
-    <string name="setting_transition_duration">Transition Duration</string>
-    <string name="setting_transition_duration_desc">Length of the blend transition between presets (seconds)</string>
-    <string name="setting_beat_driven">Beat-Driven Transitions</string>
-    <string name="setting_beat_driven_desc">Switch presets on bass beats</string>
-    <string name="setting_audio_source">Audio Source</string>
-    <string name="setting_audio_source_desc">Which audio input to use for reactivity</string>
-    <string name="setting_resolution">Display Resolution</string>
-    <string name="setting_resolution_desc">Render resolution (lower = better performance)</string>
-    <string name="setting_on">On</string>
-    <string name="setting_off">Off</string>
-    <string name="setting_resolution_native">Native</string>
-    <string name="setting_resolution_720p">720p</string>
-    <string name="setting_resolution_1080p">1080p</string>
     <string name="settings_title">MilkDrop Settings</string>
     <string name="settings_breadcrumb">Adjust visualizer settings</string>
     <string name="settings_confirm">Save Settings</string>
     <string name="settings_cancel">Cancel</string>
+    <string name="setting_cycle_interval">Preset Cycle Interval</string>
+    <string name="setting_transition_duration">Transition Duration</string>
+    <string name="setting_beat_driven">Beat-Driven Transitions</string>
+    <string name="setting_bass_threshold">Beat Threshold</string>
+    <string name="setting_bass_threshold_value">%1$d%%</string>
+    <string name="setting_audio_source">Audio Source</string>
+    <string name="setting_resolution">Display Resolution</string>
+    <string name="setting_resolution_native">Native</string>
+    <string name="setting_resolution_720p">720p</string>
+    <string name="setting_resolution_1080p">1080p</string>
+    <string name="setting_show_fps">FPS Counter</string>
+    <string name="setting_on">On</string>
+    <string name="setting_off">Off</string>
+    <string name="crash_log_title">View Crash Log</string>
+    <string name="crash_log_summary">Share or clear the debug crash log</string>
+    <string name="crash_log_dialog_title">Crash Log</string>
+    <string name="crash_log_share">Share</string>
+    <string name="crash_log_clear">Clear</string>
+    <string name="crash_log_close">Close</string>
+    <string name="crash_log_empty">No crash log recorded.</string>
+    <string name="crash_log_subject">MilkDrop TV Crash Log</string>
+    <string name="crash_log_share_chooser">Share crash log</string>
 
-    <!-- PresetBrowserFragment -->
-    <string name="preset_browser_title">Browse Presets</string>
-    <string name="user_preset_badge">★ User</string>
+    <!-- Audio sources -->
+    <string name="audio_source_auto_pulse">Auto Pulse</string>
+    <string name="audio_source_microphone">Microphone</string>
+    <string name="audio_source_system">System Audio</string>
+    <string name="audio_source_silent">Silent</string>
+    <string name="audio_source_auto_pulse_desc">Generated reactive signal, no privacy dot</string>
+    <string name="audio_source_system_desc">Captures device playback on Android 10 or newer</string>
+    <string name="audio_source_microphone_desc">Uses a real mic if one exists; shows privacy dot</string>
+    <string name="audio_source_silent_desc">No audio input</string>
+
+    <!-- Visualizer overlay -->
+    <string name="overlay_branding">MilkDrop TV</string>
+    <string name="overlay_hints">▶ = Next  ◀ = Previous  ▲ = Favorite  ▼ = Favorites  Hold OK = Lock</string>
+    <string name="overlay_audio_auto_pulse">⚡ Auto Pulse %1$d%%</string>
+    <string name="overlay_audio_microphone">🎤 Mic %1$d%%</string>
+    <string name="overlay_audio_system">♫ Device audio %1$d%%</string>
+    <string name="overlay_audio_silent">🔇 Silent</string>
+    <string name="overlay_favorite_added">★ Added favorite: %1$s</string>
+    <string name="overlay_favorite_removed">Removed favorite: %1$s</string>
+    <string name="overlay_favorites_only">Favorites-only cycling</string>
+    <string name="overlay_all_presets">All-presets cycling</string>
+    <string name="overlay_locked">Preset locked</string>
+    <string name="overlay_unlocked">Preset cycling resumed</string>
+    <string name="fps_format">%1$.0f fps</string>
+
+    <!-- Capture notification -->
+    <string name="playback_capture_channel_name">Audio visualization</string>
+    <string name="playback_capture_notification_title">MilkDrop TV is running</string>
+    <string name="playback_capture_notification_text">System audio is available for the visualizer</string>
 </resources>

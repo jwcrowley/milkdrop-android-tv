@@ -14,6 +14,9 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.milkdrop.audio.AudioCaptureManager
@@ -54,6 +57,9 @@ class VisualizerActivity : FragmentActivity() {
     private var activeAudioSource = AudioSourceType.SILENT
     private var mediaProjection: MediaProjection? = null
     private var projectionRequestInFlight = false
+
+    /** True when the user left via Home/Recents (not an in-app navigation). */
+    private var leavingApp = false
 
     private val playbackCaptureLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -98,17 +104,14 @@ class VisualizerActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Fullscreen
-        window.addFlags(
-            WindowManager.LayoutParams.FLAG_FULLSCREEN or
-            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-        )
-        @Suppress("DEPRECATION")
-        window.decorView.systemUiVisibility = (
-            View.SYSTEM_UI_FLAG_FULLSCREEN or
-            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-        )
+        // Immersive fullscreen + keep screen on.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowCompat.getInsetsController(window, window.decorView).let { controller ->
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
 
         // Wire up singletons
         if (LauncherActivity.isInitialized) {
@@ -169,7 +172,7 @@ class VisualizerActivity : FragmentActivity() {
         presetNameText = overlayView.findViewById(R.id.overlay_preset_name)
         hintText       = overlayView.findViewById(R.id.overlay_hints)
         audioIndicatorText = overlayView.findViewById(R.id.overlay_audio_indicator)
-        hintText.text  = "▶ = Next  ◀ = Previous  ▲ = Favorite  ▼ = Favorites  Hold OK = Lock"
+        hintText.text = getString(R.string.overlay_hints)
         root.addView(overlayView, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.WRAP_CONTENT
@@ -215,6 +218,7 @@ class VisualizerActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
+        leavingApp = false
         val settings = settingsRepository.get()
         applySurfaceResolution(settings.renderWidth, settings.renderHeight)
         surfaceView.onResume()
@@ -275,19 +279,30 @@ class VisualizerActivity : FragmentActivity() {
         audioLevelHandler.removeCallbacksAndMessages(null)
         playbackCaptureJob?.cancel()
         playbackCaptureJob = null
-        if (isFinishing && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            PlaybackCaptureService.stop(this)
+        if (leavingApp && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            stopProjectionIfRunning()
         }
         if (ownsInstances) {
             presetManager.release()
         }
     }
 
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // Called when the user leaves via Home/Recents (not for in-app navigation).
+        leavingApp = true
+    }
+
     override fun onStop() {
         super.onStop()
-        if (!projectionRequestInFlight && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            PlaybackCaptureService.stop(this)
-            mediaProjection = null
+        // Keep the MediaProjection alive across in-app navigation (settings,
+        // preset browser, back) so the user isn't re-prompted for consent.
+        // Release it when the app actually goes to the background, for privacy
+        // and battery.
+        if (leavingApp && !projectionRequestInFlight &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        ) {
+            stopProjectionIfRunning()
         }
     }
 
@@ -331,42 +346,47 @@ class VisualizerActivity : FragmentActivity() {
     }
 
     private fun currentPresetLabel(): String {
-        val preset = presetManager.getCurrentPreset() ?: return "MilkDrop TV"
-        val favorite = if (favoritesRepository.isFavorite(preset)) "★ " else ""
+        val preset = presetManager.getCurrentPreset() ?: return getString(R.string.overlay_branding)
+        val name = if (favoritesRepository.isFavorite(preset)) {
+            getString(R.string.favorite_item, preset.name)
+        } else {
+            preset.name
+        }
         val mode = if (presetManager.isFavoritesOnlyMode()) "  •  Favorites" else ""
         val locked = if (presetManager.isPresetLocked()) "  •  Locked" else ""
-        return favorite + preset.name + mode + locked
+        return name + mode + locked
     }
 
     private fun toggleFavorite() {
         val preset = presetManager.getCurrentPreset() ?: return
         val isFavorite = presetManager.toggleFavorite(preset)
         showOverlay()
-        presetNameText.text = (if (isFavorite) "★ Added favorite: " else "Removed favorite: ") + preset.name
+        presetNameText.text = getString(
+            if (isFavorite) R.string.overlay_favorite_added else R.string.overlay_favorite_removed,
+            preset.name
+        )
     }
 
     private fun toggleFavoritesOnlyMode() {
         val enabled = presetManager.toggleFavoritesOnlyMode()
         showOverlay()
-        presetNameText.text = if (enabled) {
-            "Favorites-only cycling"
-        } else {
-            "All-presets cycling"
-        }
+        presetNameText.text = getString(
+            if (enabled) R.string.overlay_favorites_only else R.string.overlay_all_presets
+        )
     }
 
     private fun togglePresetLock() {
         val locked = presetManager.togglePresetLock()
         showOverlay()
-        presetNameText.text = if (locked) {
-            "Preset locked"
-        } else {
-            "Preset cycling resumed"
-        }
+        presetNameText.text = getString(
+            if (locked) R.string.overlay_locked else R.string.overlay_unlocked
+        )
     }
 
     private fun startAudio(sourceType: AudioSourceType) {
         if (sourceType != AudioSourceType.SYSTEM_AUDIO) {
+            // Release the projection when it is no longer needed.
+            stopProjectionIfRunning()
             audioCaptureManager.start(sourceType)
             return
         }
@@ -386,13 +406,20 @@ class VisualizerActivity : FragmentActivity() {
         }
     }
 
+    private fun stopProjectionIfRunning() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            PlaybackCaptureService.stop(this)
+            mediaProjection = null
+        }
+    }
+
     private fun updateAudioIndicator() {
         val level = (bridge.getBass() * 100f).toInt().coerceIn(0, 100)
         audioIndicatorText.text = when (activeAudioSource) {
-            AudioSourceType.AUTO_PULSE -> "⚡ Auto Pulse ${level}%"
-            AudioSourceType.MICROPHONE -> "🎤 Mic ${level}%"
-            AudioSourceType.SYSTEM_AUDIO -> "♫ Device audio ${level}%"
-            AudioSourceType.SILENT -> "🔇 Silent"
+            AudioSourceType.AUTO_PULSE -> getString(R.string.overlay_audio_auto_pulse, level)
+            AudioSourceType.MICROPHONE -> getString(R.string.overlay_audio_microphone, level)
+            AudioSourceType.SYSTEM_AUDIO -> getString(R.string.overlay_audio_system, level)
+            AudioSourceType.SILENT -> getString(R.string.overlay_audio_silent)
         }
     }
 
@@ -404,7 +431,7 @@ class VisualizerActivity : FragmentActivity() {
             val fps = frameCount * 1000f / elapsed
             frameCount = 0
             fpsLastTimeMs = now
-            fpsText.post { fpsText.text = "%.0f fps".format(fps) }
+            fpsText.post { fpsText.text = getString(R.string.fps_format, fps) }
         }
     }
 

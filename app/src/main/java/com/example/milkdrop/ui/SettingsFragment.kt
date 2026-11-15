@@ -31,6 +31,7 @@ class SettingsFragment : GuidedStepSupportFragment() {
         private const val ACTION_CYCLE_INTERVAL    = 1L
         private const val ACTION_TRANSITION_DUR    = 2L
         private const val ACTION_BEAT_DRIVEN       = 3L
+        private const val ACTION_BASS_THRESHOLD    = 8L
         private const val ACTION_AUDIO_SOURCE      = 4L
         private const val ACTION_RESOLUTION        = 5L
         private const val ACTION_SHOW_FPS          = 6L
@@ -102,7 +103,21 @@ class SettingsFragment : GuidedStepSupportFragment() {
                 .build()
         )
 
-        // 4. Audio source (sub-actions)
+        // 4. Beat threshold
+        actions.add(
+            GuidedAction.Builder(requireContext())
+                .id(ACTION_BASS_THRESHOLD)
+                .title(getString(R.string.setting_bass_threshold))
+                .description(
+                    getString(
+                        R.string.setting_bass_threshold_value,
+                        (workingSettings.bassThreshold * 100).toInt()
+                    )
+                )
+                .build()
+        )
+
+        // 5. Audio source (sub-actions)
         actions.add(
             GuidedAction.Builder(requireContext())
                 .id(ACTION_AUDIO_SOURCE)
@@ -126,8 +141,14 @@ class SettingsFragment : GuidedStepSupportFragment() {
         actions.add(
             GuidedAction.Builder(requireContext())
                 .id(ACTION_SHOW_FPS)
-                .title("FPS Counter")
-                .description(if (workingSettings.showFps) "On" else "Off")
+                .title(getString(R.string.setting_show_fps))
+                .description(
+                    if (workingSettings.showFps) {
+                        getString(R.string.setting_on)
+                    } else {
+                        getString(R.string.setting_off)
+                    }
+                )
                 .build()
         )
 
@@ -135,8 +156,8 @@ class SettingsFragment : GuidedStepSupportFragment() {
         actions.add(
             GuidedAction.Builder(requireContext())
                 .id(ACTION_CRASH_LOG)
-                .title("View Crash Log")
-                .description("Share or clear the debug crash log")
+                .title(getString(R.string.crash_log_title))
+                .description(getString(R.string.crash_log_summary))
                 .build()
         )
 
@@ -182,10 +203,22 @@ class SettingsFragment : GuidedStepSupportFragment() {
                 notifyActionChanged(findActionPositionById(ACTION_BEAT_DRIVEN))
             }
 
+            ACTION_BASS_THRESHOLD -> {
+                // Cycle 30%..95% in 5% steps.
+                val currentPercent = (workingSettings.bassThreshold * 100).toInt()
+                val nextPercent =
+                    if (currentPercent >= 95) 30 else (currentPercent + 5).coerceAtMost(95)
+                workingSettings = workingSettings.copy(bassThreshold = nextPercent / 100f)
+                action.description =
+                    getString(R.string.setting_bass_threshold_value, nextPercent)
+                notifyActionChanged(findActionPositionById(ACTION_BASS_THRESHOLD))
+            }
+
             ACTION_SHOW_FPS -> {
                 val toggled = !workingSettings.showFps
                 workingSettings = workingSettings.copy(showFps = toggled)
-                action.description = if (toggled) "On" else "Off"
+                action.description =
+                    if (toggled) getString(R.string.setting_on) else getString(R.string.setting_off)
                 notifyActionChanged(findActionPositionById(ACTION_SHOW_FPS))
             }
 
@@ -193,7 +226,13 @@ class SettingsFragment : GuidedStepSupportFragment() {
                 val ctx = requireContext()
                 val log = com.example.milkdrop.CrashLogger.getLog(ctx)
                 val tv = android.widget.TextView(ctx).apply {
-                    text = if (log.length > 3000) log.takeLast(3000) else log
+                    text = if (log.isBlank()) {
+                        getString(R.string.crash_log_empty)
+                    } else if (log.length > 3000) {
+                        log.takeLast(3000)
+                    } else {
+                        log
+                    }
                     textSize = 13f
                     setPadding(32, 32, 32, 32)
                     setTextColor(0xFFCCCCCC.toInt())
@@ -201,18 +240,28 @@ class SettingsFragment : GuidedStepSupportFragment() {
                 }
                 val scroll = android.widget.ScrollView(ctx).apply { addView(tv) }
                 android.app.AlertDialog.Builder(ctx)
-                    .setTitle("Crash Log")
+                    .setTitle(getString(R.string.crash_log_dialog_title))
                     .setView(scroll)
-                    .setPositiveButton("Share") { _, _ ->
+                    .setPositiveButton(getString(R.string.crash_log_share)) { _, _ ->
                         val i = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                             type = "text/plain"
-                            putExtra(android.content.Intent.EXTRA_SUBJECT, "MilkDrop TV Crash Log")
+                            putExtra(
+                                android.content.Intent.EXTRA_SUBJECT,
+                                getString(R.string.crash_log_subject)
+                            )
                             putExtra(android.content.Intent.EXTRA_TEXT, log)
                         }
-                        startActivity(android.content.Intent.createChooser(i, "Share crash log"))
+                        startActivity(
+                            android.content.Intent.createChooser(
+                                i,
+                                getString(R.string.crash_log_share_chooser)
+                            )
+                        )
                     }
-                    .setNeutralButton("Clear") { _, _ -> com.example.milkdrop.CrashLogger.clear(ctx) }
-                    .setNegativeButton("Close", null)
+                    .setNeutralButton(getString(R.string.crash_log_clear)) { _, _ ->
+                        com.example.milkdrop.CrashLogger.clear(ctx)
+                    }
+                    .setNegativeButton(getString(R.string.crash_log_close), null)
                     .show()
             }
 
@@ -310,28 +359,28 @@ class SettingsFragment : GuidedStepSupportFragment() {
             GuidedAction.Builder(requireContext())
                 .id(SUB_AUDIO_AUTO_PULSE)
                 .title(getString(R.string.audio_source_auto_pulse))
-                .description("Generated reactive signal, no privacy dot")
+                .description(getString(R.string.audio_source_auto_pulse_desc))
                 .checkSetId(GuidedAction.CHECKBOX_CHECK_SET_ID)
                 .checked(current == AudioSourceType.AUTO_PULSE)
                 .build(),
             GuidedAction.Builder(requireContext())
                 .id(SUB_AUDIO_SYSTEM)
                 .title(getString(R.string.audio_source_system))
-                .description("Captures device playback on Android 10 or newer")
+                .description(getString(R.string.audio_source_system_desc))
                 .checkSetId(GuidedAction.CHECKBOX_CHECK_SET_ID)
                 .checked(current == AudioSourceType.SYSTEM_AUDIO)
                 .build(),
             GuidedAction.Builder(requireContext())
                 .id(SUB_AUDIO_MIC)
                 .title(getString(R.string.audio_source_microphone))
-                .description("Uses a real mic if one exists; shows privacy dot")
+                .description(getString(R.string.audio_source_microphone_desc))
                 .checkSetId(GuidedAction.CHECKBOX_CHECK_SET_ID)
                 .checked(current == AudioSourceType.MICROPHONE)
                 .build(),
             GuidedAction.Builder(requireContext())
                 .id(SUB_AUDIO_SILENT)
                 .title(getString(R.string.audio_source_silent))
-                .description("No audio input")
+                .description(getString(R.string.audio_source_silent_desc))
                 .checkSetId(GuidedAction.CHECKBOX_CHECK_SET_ID)
                 .checked(current == AudioSourceType.SILENT)
                 .build()

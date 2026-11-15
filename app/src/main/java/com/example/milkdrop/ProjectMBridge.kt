@@ -88,24 +88,9 @@ class ProjectMBridge {
 
     private external fun loadPresetNative(handle: Long, presetPath: String, smooth: Boolean)
 
-    /**
-     * Parse a preset file at [presetPath] and return:
-     * - `"OK"` if the file is a valid MilkDrop preset
-     * - `"ERROR: <description>"` if the file is missing, too large, or lacks required headers
-     */
-    external fun parsePreset(presetPath: String): String
-
     // -------------------------------------------------------------------------
-    // Preset timing and sensitivity
+    // Preset timing
     // -------------------------------------------------------------------------
-
-    /**
-     * Set how long (in seconds) each preset is displayed before an automatic
-     * transition. Delegates to [projectm_set_preset_duration].
-     */
-    fun setPresetDuration(seconds: Double) = setPresetDuration(handle, seconds)
-
-    external fun setPresetDuration(handle: Long, seconds: Double)
 
     /**
      * Set the soft-cut (blend) transition duration in seconds.
@@ -114,14 +99,6 @@ class ProjectMBridge {
     fun setSoftCutDuration(seconds: Double) = setSoftCutDuration(handle, seconds)
 
     external fun setSoftCutDuration(handle: Long, seconds: Double)
-
-    /**
-     * Set the beat sensitivity multiplier (higher = more reactive).
-     * Delegates to [projectm_set_beat_sensitivity].
-     */
-    fun setBeatSensitivity(sensitivity: Float) = setBeatSensitivity(handle, sensitivity)
-
-    external fun setBeatSensitivity(handle: Long, sensitivity: Float)
 
     // -------------------------------------------------------------------------
     // Beat detection

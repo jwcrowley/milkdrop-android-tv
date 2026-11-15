@@ -127,7 +127,7 @@ class PresetManager(
         // Push current back to the front of the shuffle (so it's not lost)
         currentPreset?.let { current ->
             // Insert current at the beginning of the remaining shuffle
-            val currentIndex = library.presets.indexOf(current)
+            val currentIndex = library.presets.indexOfFirst { it.id == current.id }
             if (currentIndex >= 0) {
                 shuffledIndices.add(shufflePosition.coerceAtMost(shuffledIndices.size), currentIndex)
             }
@@ -183,12 +183,6 @@ class PresetManager(
         return favoritesOnlyMode
     }
 
-    /**
-     * Returns the history of recently displayed presets, most recent first.
-     * Maximum [MAX_HISTORY] entries.
-     */
-    fun getHistory(): List<Preset> = history.toList()
-
     /** Release all coroutine resources. Call when the activity is destroyed. */
     fun release() {
         stop()
@@ -209,21 +203,25 @@ class PresetManager(
     // -------------------------------------------------------------------------
 
     private fun rebuildShuffle() {
+        val shuffled = eligiblePresetIndices()
+        shuffled.shuffle()
         shuffledIndices.clear()
-        shuffledIndices.addAll(eligiblePresetIndices().toMutableList().also { it.shuffle() })
+        shuffledIndices.addAll(shuffled)
         shufflePosition = 0
         Log.d(TAG, "Rebuilt shuffle for ${shuffledIndices.size} presets")
     }
 
-    private fun eligiblePresetIndices(): List<Int> {
-        if (!favoritesOnlyMode) return (0 until library.size()).toList()
+    /** Build the (mutable) list of eligible preset indices. */
+    private fun eligiblePresetIndices(): MutableList<Int> {
+        if (!favoritesOnlyMode) return MutableList(library.size()) { it }
         val favoriteIds = favoritesRepository.getFavoriteIds()
-        val indices = library.presets.mapIndexedNotNull { index, preset ->
-            if (preset.id in favoriteIds) index else null
+        val indices = ArrayList<Int>()
+        library.presets.forEachIndexed { index, preset ->
+            if (preset.id in favoriteIds) indices.add(index)
         }
         if (indices.isEmpty()) {
             favoritesOnlyMode = false
-            return (0 until library.size()).toList()
+            return MutableList(library.size()) { it }
         }
         return indices
     }

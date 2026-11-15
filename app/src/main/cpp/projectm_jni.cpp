@@ -31,10 +31,8 @@
    static inline void projectm_render_frame(projectm_handle) {}
    static inline void projectm_set_window_size(projectm_handle, size_t, size_t) {}
    static inline void projectm_pcm_add_int16(projectm_handle, const int16_t*, uint32_t, projectm_channels) {}
-   static inline void projectm_load_preset_file(projectm_handle, const char*, bool) {}
-   static inline void projectm_set_preset_duration(projectm_handle, double) {}
-   static inline void projectm_set_soft_cut_duration(projectm_handle, double) {}
-   static inline void projectm_set_beat_sensitivity(projectm_handle, float) {}
+static inline void projectm_load_preset_file(projectm_handle, const char*, bool) {}
+    static inline void projectm_set_soft_cut_duration(projectm_handle, double) {}
 #endif
 
 // ─── Handle map ──────────────────────────────────────────────────────────────
@@ -236,53 +234,6 @@ Java_com_example_milkdrop_ProjectMBridge_loadPresetNative(
 #endif
 }
 
-extern "C" JNIEXPORT jstring JNICALL
-Java_com_example_milkdrop_ProjectMBridge_parsePreset(
-        JNIEnv* env, jobject, jstring presetPath) {
-    const char* path = env->GetStringUTFChars(presetPath, nullptr);
-    if (!path) {
-        return env->NewStringUTF("ERROR: Failed to get preset path string");
-    }
-
-    std::string pathStr(path);
-    env->ReleaseStringUTFChars(presetPath, path);
-
-    // Check file existence
-    std::ifstream file(pathStr, std::ios::binary | std::ios::ate);
-    if (!file.is_open()) {
-        std::string err = "ERROR: File not found: " + pathStr;
-        return env->NewStringUTF(err.c_str());
-    }
-
-    // Check file size (max 512 KB)
-    std::streamsize fileSize = file.tellg();
-    const std::streamsize kMaxSize = 512 * 1024; // 512 KB
-    if (fileSize > kMaxSize) {
-        file.close();
-        return env->NewStringUTF("ERROR: File too large");
-    }
-
-    // Read up to 4 KB for header validation
-    file.seekg(0, std::ios::beg);
-    const std::streamsize kReadSize = 4096;
-    std::streamsize readSize = (fileSize < kReadSize) ? fileSize : kReadSize;
-    std::string header(static_cast<size_t>(readSize), '\0');
-    file.read(&header[0], readSize);
-    file.close();
-
-    // Validate presence of known MilkDrop preset markers
-    bool hasPreset00       = header.find("[preset00]")              != std::string::npos;
-    bool hasMilkdropHeader = header.find("[milkdrop preset]")       != std::string::npos;
-    bool hasFRating        = header.find("fRating")                 != std::string::npos;
-    bool hasVersionKey     = header.find("MILKDROP_PRESET_VERSION") != std::string::npos;
-
-    if (!hasPreset00 && !hasMilkdropHeader && !hasFRating && !hasVersionKey) {
-        return env->NewStringUTF("ERROR: Missing preset header section");
-    }
-
-    return env->NewStringUTF("OK");
-}
-
 extern "C" JNIEXPORT void JNICALL
 Java_com_example_milkdrop_ProjectMBridge_destroyNative(
         JNIEnv*, jobject, jlong handle) {
@@ -330,20 +281,6 @@ Java_com_example_milkdrop_ProjectMBridge_getTrebleNative(
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_example_milkdrop_ProjectMBridge_setPresetDuration(
-        JNIEnv*, jobject, jlong handle, jdouble seconds) {
-#if PROJECTM_AVAILABLE
-    projectm_handle pm = lookupHandle(handle);
-    if (pm) {
-        projectm_set_preset_duration(pm, static_cast<double>(seconds));
-        LOGI("setPresetDuration: %.1f s", static_cast<double>(seconds));
-    }
-#else
-    (void)handle; (void)seconds;
-#endif
-}
-
-extern "C" JNIEXPORT void JNICALL
 Java_com_example_milkdrop_ProjectMBridge_setSoftCutDuration(
         JNIEnv*, jobject, jlong handle, jdouble seconds) {
 #if PROJECTM_AVAILABLE
@@ -354,19 +291,5 @@ Java_com_example_milkdrop_ProjectMBridge_setSoftCutDuration(
     }
 #else
     (void)handle; (void)seconds;
-#endif
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_com_example_milkdrop_ProjectMBridge_setBeatSensitivity(
-        JNIEnv*, jobject, jlong handle, jfloat sensitivity) {
-#if PROJECTM_AVAILABLE
-    projectm_handle pm = lookupHandle(handle);
-    if (pm) {
-        projectm_set_beat_sensitivity(pm, static_cast<float>(sensitivity));
-        LOGI("setBeatSensitivity: %.2f", static_cast<double>(sensitivity));
-    }
-#else
-    (void)handle; (void)sensitivity;
 #endif
 }

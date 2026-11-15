@@ -26,7 +26,9 @@ class AssetExtractor(private val context: Context) {
         private const val PRESET_VERSION_FILE = ".preset_version"
         private const val PRESET_BUNDLE_VERSION = "cream-9795-v1"
         private const val PRESET_COUNT_FILE = ".preset_count"
-        private const val EXPECTED_BUNDLED_PRESETS = 9_795
+
+        /** Number of presets in the bundled corpus. Exposed for progress UI. */
+        const val EXPECTED_BUNDLED_PRESETS = 9_795
     }
 
     /** The directory where extracted presets are stored on the device filesystem. */
@@ -36,9 +38,13 @@ class AssetExtractor(private val context: Context) {
      * Extract all preset files from assets if they haven't been extracted for
      * the current app version.
      *
+     * @param onProgress Optional callback invoked (on the IO thread) with the
+     *   cumulative number of preset files copied so far, for progress display.
      * @return The number of preset files successfully extracted (or already present).
      */
-    suspend fun extractPresetsIfNeeded(): Int = withContext(Dispatchers.IO) {
+    suspend fun extractPresetsIfNeeded(
+        onProgress: ((Int) -> Unit)? = null
+    ): Int = withContext(Dispatchers.IO) {
         val presetDir = getPresetDirectory()
         val versionFile = File(context.filesDir, PRESET_VERSION_FILE)
         val countFile = File(context.filesDir, PRESET_COUNT_FILE)
@@ -72,7 +78,9 @@ class AssetExtractor(private val context: Context) {
         Log.i(TAG, "Extracting preset bundle $PRESET_BUNDLE_VERSION...")
         presetDir.mkdirs()
 
-        val extractedCount = extractDirectory(PRESET_ASSET_DIR, presetDir)
+        val counter = IntArray(1)
+        val extractedCount = extractDirectory(PRESET_ASSET_DIR, presetDir, onProgress, counter)
+        onProgress?.invoke(counter[0])
 
         try {
             versionFile.writeText(PRESET_BUNDLE_VERSION)
@@ -85,8 +93,12 @@ class AssetExtractor(private val context: Context) {
         extractedCount
     }
 
-    private fun extractDirectory(assetPath: String, targetDir: File): Int {
-        var count = 0
+    private fun extractDirectory(
+        assetPath: String,
+        targetDir: File,
+        onProgress: ((Int) -> Unit)?,
+        counter: IntArray
+    ): Int {
         val assets = try {
             context.assets.list(assetPath) ?: return 0
         } catch (e: IOException) {
@@ -103,16 +115,20 @@ class AssetExtractor(private val context: Context) {
             if (subAssets != null && subAssets.isNotEmpty()) {
                 // It's a directory — recurse
                 targetFile.mkdirs()
-                count += extractDirectory(assetFilePath, targetFile)
+                extractDirectory(assetFilePath, targetFile, onProgress, counter)
             } else {
                 // It's a file — copy it
                 if (asset.endsWith(".milk", ignoreCase = true) ||
                     asset.endsWith(".milk2", ignoreCase = true)) {
-                    count += copyAsset(assetFilePath, targetFile)
+                    if (copyAsset(assetFilePath, targetFile) > 0) {
+                        val total = ++counter[0]
+                        // Throttle UI updates to ~1% of the corpus.
+                        if (onProgress != null && total % 100 == 0) onProgress(total)
+                    }
                 }
             }
         }
-        return count
+        return counter[0]
     }
 
     private fun copyAsset(assetPath: String, targetFile: File): Int {

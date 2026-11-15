@@ -36,18 +36,25 @@ class SplashFragment : Fragment() {
         statusText  = view.findViewById(R.id.splash_status)
 
         statusText.text = getString(R.string.splash_loading)
-        progressBar.isIndeterminate = true
+        progressBar.isIndeterminate = false
+        progressBar.max = AssetExtractor.EXPECTED_BUNDLED_PRESETS
 
         viewLifecycleOwner.lifecycleScope.launch {
             val extractor = AssetExtractor(requireContext())
-            val count = extractor.extractPresetsIfNeeded()
-            statusText.text = getString(R.string.splash_loaded, count)
+            val count = extractor.extractPresetsIfNeeded { copied ->
+                progressBar.post {
+                    progressBar.progress = (
+                        copied.toLong() * progressBar.max /
+                            AssetExtractor.EXPECTED_BUNDLED_PRESETS
+                        ).toInt().coerceIn(0, progressBar.max)
+                }
+            }
+            progressBar.progress = progressBar.max
+            statusText.text =
+                resources.getQuantityString(R.plurals.splash_loaded, count, count)
 
-            // Rebuild the preset library only if it was indexed before extraction
-            // finished (first launch / fresh install). On normal launches
-            // LauncherActivity.initializeSingletons() already indexed the full
-            // corpus, so rebuilding would just re-parse the ~9.8k-entry cache
-            // and re-prune favorites for no benefit.
+            // The library starts empty (built off the main thread) so it must be
+            // populated now that extraction is complete.
             if (LauncherActivity.isInitialized &&
                 LauncherActivity.presetLibrary.bundledCount == 0
             ) {

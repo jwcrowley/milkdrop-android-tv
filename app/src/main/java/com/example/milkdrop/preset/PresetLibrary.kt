@@ -21,8 +21,6 @@ class PresetLibrary private constructor(
 
     fun size(): Int = allPresets.size
 
-    fun getById(id: String): Preset? = allPresets.firstOrNull { it.id == id }
-
     fun getByIndex(index: Int): Preset = allPresets[index]
 
     companion object {
@@ -30,6 +28,9 @@ class PresetLibrary private constructor(
         private const val INDEX_VERSION = "cream-9795-v1"
         private const val INDEX_FILE = ".preset_index"
         private const val EXPECTED_BUNDLED_PRESETS = 9_795
+
+        /** An empty library, used before the real index has been built off the UI thread. */
+        fun empty(): PresetLibrary = PresetLibrary(emptyList(), bundledCount = 0, userCount = 0)
 
         fun build(
             bundledPresetDir: File,
