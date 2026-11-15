@@ -102,21 +102,35 @@ class SystemAudioSource(
         }
 
         captureThread = Thread({
-            val buffer = ShortArray(bufferSize / 2)
-            while (running.get()) {
-                val read = record.read(buffer, 0, buffer.size)
-                if (read > 0) {
-                    callback(
-                        AudioFrame(
-                            pcmData = buffer.copyOf(read),
-                            sampleRate = sampleRate,
-                            channelCount = channelCount,
-                            timestampNanos = System.nanoTime()
+            try {
+                val buffer = ShortArray(bufferSize / 2)
+                while (running.get()) {
+                    val read = record.read(buffer, 0, buffer.size)
+                    if (read > 0) {
+                        callback(
+                            AudioFrame(
+                                pcmData = buffer.copyOf(read),
+                                sampleRate = sampleRate,
+                                channelCount = channelCount,
+                                timestampNanos = System.nanoTime()
+                            )
                         )
-                    )
-                } else if (read < 0) {
-                    Log.e(TAG, "AudioRecord.read() error: $read")
+                    } else if (read < 0) {
+                        Log.e(TAG, "AudioRecord.read() error: $read")
+                    }
                 }
+            } finally {
+                // Release the AudioRecord on the thread that was reading from it.
+                // Releasing from stop() while this thread is blocked in read() can
+                // crash the process natively.
+                try {
+                    if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                        record.stop()
+                    }
+                } catch (e: IllegalStateException) {
+                    Log.w(TAG, "System AudioRecord stop failed", e)
+                }
+                record.release()
             }
         }, "MilkDrop-SystemAudio").also { it.isDaemon = true }
 
@@ -126,6 +140,8 @@ class SystemAudioSource(
 
     override fun stop() {
         running.set(false)
+        // Unblock any pending read() so the capture thread can exit and release
+        // the AudioRecord itself. Releasing here instead would race the thread.
         audioRecord?.let { record ->
             try {
                 if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
@@ -138,9 +154,7 @@ class SystemAudioSource(
         }
         captureThread?.join(500)
         captureThread = null
-        audioRecord?.apply {
-            release()
-        }
+        // The capture thread owns the AudioRecord lifecycle; just drop our ref.
         audioRecord = null
         try {
             mediaProjection.unregisterCallback(projectionCallback)

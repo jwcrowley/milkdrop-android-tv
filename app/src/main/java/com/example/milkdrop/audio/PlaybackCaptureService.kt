@@ -11,6 +11,7 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.annotation.RequiresApi
 import com.example.milkdrop.R
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -82,6 +83,14 @@ class PlaybackCaptureService : Service() {
             }
             val manager = getSystemService(MediaProjectionManager::class.java)
             mediaProjection = manager.getMediaProjection(resultCode, resultData)
+            if (mediaProjection == null) {
+                // The result token was already consumed or is otherwise invalid
+                // (e.g. the service was restarted after a process death). Don't
+                // linger in the foreground with no projection.
+                Log.w("PlaybackCaptureService", "getMediaProjection returned null — stopping")
+                stopSelf()
+                return START_NOT_STICKY
+            }
             _projectionFlow.value = mediaProjection
         }
         return START_NOT_STICKY

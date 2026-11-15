@@ -86,20 +86,34 @@ class MicrophoneAudioSource : AudioSource {
         }
 
         captureThread = Thread({
-            val buffer = ShortArray(bufferSize / 2)  // bufferSize is in bytes; ShortArray is 2 bytes/element
-            while (running.get()) {
-                val read = record.read(buffer, 0, buffer.size)
-                if (read > 0) {
-                    val frame = AudioFrame(
-                        pcmData = buffer.copyOf(read),
-                        sampleRate = sampleRate,
-                        channelCount = channelCount,
-                        timestampNanos = System.nanoTime()
-                    )
-                    callback(frame)
-                } else if (read < 0) {
-                    Log.e(TAG, "AudioRecord.read() error: $read")
+            try {
+                val buffer = ShortArray(bufferSize / 2)  // bufferSize is in bytes; ShortArray is 2 bytes/element
+                while (running.get()) {
+                    val read = record.read(buffer, 0, buffer.size)
+                    if (read > 0) {
+                        val frame = AudioFrame(
+                            pcmData = buffer.copyOf(read),
+                            sampleRate = sampleRate,
+                            channelCount = channelCount,
+                            timestampNanos = System.nanoTime()
+                        )
+                        callback(frame)
+                    } else if (read < 0) {
+                        Log.e(TAG, "AudioRecord.read() error: $read")
+                    }
                 }
+            } finally {
+                // Release the AudioRecord on the thread that was reading from it.
+                // Releasing from stop() while this thread is blocked inside read()
+                // can crash the process natively.
+                try {
+                    if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                        record.stop()
+                    }
+                } catch (e: IllegalStateException) {
+                    Log.w(TAG, "AudioRecord stop failed", e)
+                }
+                record.release()
             }
         }, "MilkDrop-AudioCapture").also { it.isDaemon = true }
 
@@ -109,8 +123,8 @@ class MicrophoneAudioSource : AudioSource {
 
     override fun stop() {
         running.set(false)
-        // Stop first to unblock a pending read. Joining before stop can leave the
-        // capture thread using AudioRecord while another thread releases it.
+        // Unblock any pending read() so the capture thread can exit and release
+        // the AudioRecord itself. Releasing here instead would race the thread.
         audioRecord?.let { record ->
             try {
                 if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
@@ -123,9 +137,7 @@ class MicrophoneAudioSource : AudioSource {
         }
         captureThread?.join(500)
         captureThread = null
-        audioRecord?.apply {
-            release()
-        }
+        // The capture thread owns the AudioRecord lifecycle; just drop our ref.
         audioRecord = null
         Log.i(TAG, "Stopped microphone capture")
     }

@@ -116,23 +116,21 @@ static void updateEnergyMetrics(
     g_trebleEnergy.store(0.7f * prevTreble + 0.3f * newTreble, std::memory_order_relaxed);
 }
 
-static std::vector<int16_t> amplifyPcm(const int16_t* samples, int totalSamples) {
+static void amplifyPcm(const int16_t* samples, int16_t* output, int totalSamples) {
     static constexpr float kGain = 8.0f;
     static constexpr int kNoiseGate = 96;
 
-    std::vector<int16_t> amplified(static_cast<size_t>(totalSamples));
     for (int i = 0; i < totalSamples; ++i) {
         int value = samples[i];
         if (std::abs(value) < kNoiseGate) {
-            amplified[static_cast<size_t>(i)] = 0;
+            output[i] = 0;
             continue;
         }
         int boosted = static_cast<int>(static_cast<float>(value) * kGain);
         if (boosted > 32767) boosted = 32767;
         if (boosted < -32768) boosted = -32768;
-        amplified[static_cast<size_t>(i)] = static_cast<int16_t>(boosted);
+        output[i] = static_cast<int16_t>(boosted);
     }
-    return amplified;
 }
 
 // ─── JNI implementations ──────────────────────────────────────────────────────
@@ -196,8 +194,13 @@ Java_com_example_milkdrop_ProjectMBridge_feedAudioNative(
 
     int ch = (channels == 2) ? 2 : 1;
     int frameCount = static_cast<int>(totalSamples) / ch;
-    std::vector<int16_t> amplified = amplifyPcm(
+    // Reuse a thread-local scratch buffer instead of allocating a vector on
+    // every audio frame (feedAudio runs ~30-60x/second on the render thread).
+    static thread_local std::vector<int16_t> amplified;
+    amplified.resize(static_cast<size_t>(totalSamples));
+    amplifyPcm(
         reinterpret_cast<const int16_t*>(buf),
+        amplified.data(),
         static_cast<int>(totalSamples));
 
     projectm_pcm_add_int16(

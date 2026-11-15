@@ -43,10 +43,14 @@ class SplashFragment : Fragment() {
             val count = extractor.extractPresetsIfNeeded()
             statusText.text = getString(R.string.splash_loaded, count)
 
-            // Rebuild the preset library now that extraction is confirmed complete.
-            // This ensures PresetManager shuffles from all extracted presets, not
-            // whatever was on disk when initializeSingletons() ran at startup.
-            if (LauncherActivity.isInitialized) {
+            // Rebuild the preset library only if it was indexed before extraction
+            // finished (first launch / fresh install). On normal launches
+            // LauncherActivity.initializeSingletons() already indexed the full
+            // corpus, so rebuilding would just re-parse the ~9.8k-entry cache
+            // and re-prune favorites for no benefit.
+            if (LauncherActivity.isInitialized &&
+                LauncherActivity.presetLibrary.bundledCount == 0
+            ) {
                 LauncherActivity.rebuildPresetLibrary()
             }
 

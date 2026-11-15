@@ -11,6 +11,7 @@ package com.example.milkdrop
 class ProjectMBridge {
 
     /** Opaque handle to the native projectM instance. 0 means uninitialised. */
+    @Volatile
     private var handle: Long = 0L
 
     // -------------------------------------------------------------------------

@@ -3,11 +3,13 @@ package com.example.milkdrop.audio
 import java.util.concurrent.ArrayBlockingQueue
 
 /**
- * Lock-free ring buffer for passing [AudioFrame] objects from the Audio Thread
+ * Small bounded queue for passing [AudioFrame] objects from the Audio Thread
  * to the Render Thread.
  *
- * Capacity is fixed at 4 frames. When the queue is full, the oldest frame is
- * dropped to make room for the newest (producer never blocks).
+ * Backed by [ArrayBlockingQueue]. There is a single producer (the audio capture
+ * thread) and a single consumer (the render thread). Capacity is fixed at 4
+ * frames; when the queue is full, the oldest frame is dropped to make room for
+ * the newest, so the producer never blocks.
  */
 class AudioFrameQueue(private val capacity: Int = 4) {
 
@@ -15,7 +17,7 @@ class AudioFrameQueue(private val capacity: Int = 4) {
 
     /**
      * Enqueue a frame. If the queue is full, the oldest frame is discarded.
-     * Called from the Audio Thread.
+     * Called from the (single) Audio Thread.
      */
     fun offer(frame: AudioFrame) {
         if (!queue.offer(frame)) {

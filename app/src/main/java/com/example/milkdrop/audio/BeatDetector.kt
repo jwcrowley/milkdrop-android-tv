@@ -1,5 +1,6 @@
 package com.example.milkdrop.audio
 
+import android.os.SystemClock
 import com.example.milkdrop.ProjectMBridge
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -53,7 +54,9 @@ class BeatDetector(
     fun poll(): BeatEvent? {
         val bass = bridge.getBass()
         val treble = bridge.getTreble()
-        val now = System.currentTimeMillis()
+        // Use a monotonic clock so wall-clock adjustments (NTP, timezone, user
+        // changes) can't corrupt beat spacing.
+        val now = SystemClock.elapsedRealtime()
 
         var event: BeatEvent? = null
 

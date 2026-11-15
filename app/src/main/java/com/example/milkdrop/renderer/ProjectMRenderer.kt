@@ -26,6 +26,7 @@ class ProjectMRenderer(
     private var surfaceWidth = 0
     private var surfaceHeight = 0
     private val contextLost = AtomicBoolean(false)
+    private var bridgeCreated = false
 
     // Pending preset load — set from any thread, consumed on Render Thread
     @Volatile private var pendingPreset: Preset? = null
@@ -49,12 +50,14 @@ class ProjectMRenderer(
         // A GLSurfaceView can recreate its EGL context after a pause. Dispose the
         // previous projectM instance before replacing its handle.
         bridge.destroy()
+        bridgeCreated = false
         val (w, h) = resolveResolution()
-        bridge.create(w.coerceAtLeast(1), h.coerceAtLeast(1), presetDirectory)
-        bridge.setSoftCutDuration(transitionDuration.toDouble())
-        activePreset?.let { bridge.loadPreset(it.filePath, false) }
-        appliedTransitionDuration = transitionDuration
-        resolutionChangePending.set(false)
+        // For NATIVE the real surface size isn't known until onSurfaceChanged,
+        // which is guaranteed to run immediately after this callback. Avoid
+        // creating projectM at a placeholder 1x1 size in that case.
+        if (w > 0 && h > 0) {
+            createBridge(w, h)
+        }
         contextLost.set(false)
     }
 
@@ -62,10 +65,26 @@ class ProjectMRenderer(
         surfaceWidth = width
         surfaceHeight = height
         val (w, h) = resolveResolution()
-        bridge.reinitialize(w, h)
+        if (w > 0 && h > 0) {
+            if (!bridgeCreated) {
+                createBridge(w, h)
+            } else {
+                bridge.reinitialize(w, h)
+            }
+        }
         if (contextLost.get()) {
             contextLost.set(false)
         }
+    }
+
+    /** Create the native projectM instance at [w]×[h] and restore state. */
+    private fun createBridge(w: Int, h: Int) {
+        bridge.create(w.coerceAtLeast(1), h.coerceAtLeast(1), presetDirectory)
+        bridge.setSoftCutDuration(transitionDuration.toDouble())
+        activePreset?.let { bridge.loadPreset(it.filePath, false) }
+        appliedTransitionDuration = transitionDuration
+        resolutionChangePending.set(false)
+        bridgeCreated = true
     }
 
     override fun onDrawFrame(gl: GL10?) {
@@ -136,11 +155,13 @@ class ProjectMRenderer(
     fun onContextLost() {
         contextLost.set(true)
         bridge.destroy()
+        bridgeCreated = false
     }
 
     /** Release all resources. Call from the Render Thread or after it has stopped. */
     fun release() {
         bridge.destroy()
+        bridgeCreated = false
     }
 
     // -------------------------------------------------------------------------

@@ -58,13 +58,17 @@ class VisualizerActivity : FragmentActivity() {
     private val playbackCaptureLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        projectionRequestInFlight = false
         val data = result.data
         if (result.resultCode == Activity.RESULT_OK && data != null &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         ) {
+            // Keep projectionRequestInFlight set until the service actually emits
+            // a MediaProjection. Clearing it here lets onResume() (which runs
+            // right after this callback) re-launch the consent prompt before the
+            // service has produced the projection.
             PlaybackCaptureService.start(this, result.resultCode, data)
         } else {
+            projectionRequestInFlight = false
             settingsRepository.update(
                 settingsRepository.get().copy(audioSource = AudioSourceType.AUTO_PULSE)
             )
@@ -195,6 +199,10 @@ class VisualizerActivity : FragmentActivity() {
             playbackCaptureJob = lifecycleScope.launch {
                 PlaybackCaptureService.projectionFlow.collectLatest { projection ->
                     mediaProjection = projection
+                    // The consent request is resolved once the service reports
+                    // back (or the projection goes away). This lets a later
+                    // resume re-request if no projection is available.
+                    projectionRequestInFlight = false
                     if (projection != null &&
                         settingsRepository.get().audioSource == AudioSourceType.SYSTEM_AUDIO
                     ) {
