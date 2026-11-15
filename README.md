@@ -106,8 +106,10 @@ Access via the main menu. Options include:
 - Preset cycle interval (10–300 seconds)
 - Transition duration (1–10 seconds)
 - Beat-driven transitions (on/off)
+- Bass threshold for beat-driven transitions (30–95%)
 - Audio source (System Audio / Auto Pulse / Microphone / Silent)
 - Display resolution (Native / 720p / 1080p)
+- Show FPS counter (on/off)
 - View crash log (for debugging)
 
 ### Audio Sources
@@ -224,6 +226,14 @@ Android UI (Kotlin)
 
 | Version | Highlights |
 |---|---|
+| v1.4.18 | Capped render loop at 60 fps, audio buffer reuse, dead-code removal, bass-threshold setting |
+| v1.4.17 | Audio lifecycle and projection-consent hardening; release builds install current Android SDK |
+| v1.4.16 | projectM shipped as a replaceable shared library; device playback capture and faster transitions |
+| v1.4.15 | FPS counter overlay (top-right, toggled in Settings) |
+| v1.4.14 | Preset browser shows correct categories and all presets |
+| v1.4.13 | Reverted transition resolution drop (caused small-rectangle artifact); default blend shortened to 1s |
+| v1.4.12 | Fixed armv8 SIMD flag (arm64-v8a only, not armeabi-v7a) |
+| v1.4.11 | Transition resolution drop, O3/NEON optimizations, browser sort fix |
 | v1.4.10 | Applied soft-cut transition settings, smoother beat transitions, D-pad Right for next preset, long-press OK preset lock, docs refresh |
 | v1.4.9 | Auto Pulse generated audio source, no privacy dot or casting prompt by default |
 | v1.4.8 | Safer audio-source handling, microphone level display, disabled unreliable system-audio path |
